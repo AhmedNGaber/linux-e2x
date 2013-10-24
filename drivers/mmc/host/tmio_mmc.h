@@ -131,6 +131,7 @@ struct tmio_mmc_host {
 
 	spinlock_t			trans_lock;
 	unsigned int		trans_state;
+	bool			sdio_irq_enabled;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,

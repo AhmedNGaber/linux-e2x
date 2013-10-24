@@ -164,15 +164,22 @@ static void tmio_mmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 {
 	struct tmio_mmc_host *host = mmc_priv(mmc);
 
-	if (enable) {
+	if (enable && !host->sdio_irq_enabled) {
+		/* Keep device active while SDIO irq is enabled */
+		pm_runtime_get_sync(mmc_dev(mmc));
+		host->sdio_irq_enabled = true;
+
 		host->sdio_irq_mask = TMIO_SDIO_MASK_ALL &
 					~TMIO_SDIO_STAT_IOIRQ;
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0001);
 		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
-	} else {
+	} else if (!enable && host->sdio_irq_enabled) {
 		host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
 		sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, host->sdio_irq_mask);
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0000);
+
+		host->sdio_irq_enabled = false;
+		pm_runtime_put(mmc_dev(mmc));
 	}
 }
 
@@ -1510,8 +1517,12 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	_host->sdcard_irq_mask &= ~irq_mask;
 
-	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
-		tmio_mmc_enable_sdio_irq(mmc, 0);
+	_host->sdio_irq_enabled = false;
+	if (pdata->flags & TMIO_MMC_SDIO_IRQ) {
+		_host->sdio_irq_mask = TMIO_SDIO_MASK_ALL;
+		sd_ctrl_write16(_host, CTL_SDIO_IRQ_MASK, _host->sdio_irq_mask);
+		sd_ctrl_write16(_host, CTL_TRANSACTION_CTL, 0x0000);
+	}
 
 	if (pdata->flags & TMIO_MMC_USE_INTERNAL_DMA)
 		_host->use_internal_dma = true;
