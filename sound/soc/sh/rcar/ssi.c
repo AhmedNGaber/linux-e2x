@@ -211,7 +211,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	if (0 == ssi->usrcnt) {
 		rsnd_mod_hw_start(mod);
 
-		if (rsnd_dai_is_clk_master(rdai)) {
+		if (rsnd_rdai_is_clk_master(rdai)) {
 			/* enable WS continue */
 			status = rsnd_mod_read(mod, SSIWSR);
 			if (!(status & CONT))
@@ -245,7 +245,7 @@ static void rsnd_ssi_power_off(struct rsnd_ssi *ssi,
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
 
 	if (0 == ssi->usrcnt) {
-		if (rsnd_dai_is_clk_master(rdai)) {
+		if (rsnd_rdai_is_clk_master(rdai)) {
 			if (rsnd_ssi_clk_from_parent(ssi)) {
 				if (0 == --(ssi->parent->usrcnt)) {
 					rsnd_ssi_master_clk_stop(ssi->parent);

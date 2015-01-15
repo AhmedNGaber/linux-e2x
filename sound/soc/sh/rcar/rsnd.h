@@ -314,6 +314,7 @@ struct rsnd_dai {
 };
 
 #define rsnd_rdai_nr(priv) ((priv)->rdai_nr)
+#define rsnd_rdai_is_clk_master(rdai) ((rdai)->clk_master)
 #define for_each_rsnd_dai(rdai, priv, i)		\
 	for (i = 0;					\
 	     (i < rsnd_rdai_nr(priv)) &&		\
@@ -327,7 +328,6 @@ int rsnd_dai_id(struct rsnd_priv *priv, struct rsnd_dai *rdai);
 
 bool rsnd_dai_pointer_update(struct rsnd_dai_stream *io, int cnt);
 int rsnd_dai_pointer_offset(struct rsnd_dai_stream *io, int additional);
-#define rsnd_dai_is_clk_master(rdai) ((rdai)->clk_master)
 
 void rsnd_dai_period_elapsed(struct rsnd_dai_stream *io);
 

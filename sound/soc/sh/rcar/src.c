@@ -177,7 +177,7 @@ int rsnd_src_ssiu_init(struct rsnd_mod *ssi_mod,
 		if (shift >= 0)
 			rsnd_mod_bset(ssi_mod, SSI_MODE1,
 				      0x3 << shift,
-				      rsnd_dai_is_clk_master(rdai) ?
+				      rsnd_rdai_is_clk_master(rdai) ?
 				      0x2 << shift : 0x1 << shift);
 	}
 
