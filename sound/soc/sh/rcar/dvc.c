@@ -129,7 +129,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 		return -EINVAL;
 	}
 
-	rsnd_mod_hw_start(dvc_mod);
+	rsnd_mod_power_on(dvc_mod);
 
 	/*
 	 * fixme
@@ -153,7 +153,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 static int rsnd_dvc_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	return 0;
 }

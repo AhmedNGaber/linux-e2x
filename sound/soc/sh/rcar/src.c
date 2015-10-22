@@ -439,7 +439,7 @@ static int rsnd_src_init(struct rsnd_mod *mod,
 {
 	int ret;
 
-	rsnd_mod_hw_start(mod);
+	rsnd_mod_power_on(mod);
 	ret = rsnd_src_status_clear(mod);
 
 	return ret;
@@ -452,7 +452,7 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	rsnd_mod_hw_stop(mod);
+	rsnd_mod_power_off(mod);
 
 	if (src->err_uf_srco > 0)
 		dev_warn(dev, "src uf_srco err = %d\n", src->err_uf_srco);
