@@ -343,6 +343,11 @@ static const struct of_device_id gpio_rcar_of_table[] = {
 			.has_both_edge_trigger = true,
 		},
 	}, {
+		.compatible = "renesas,gpio-r8a7794x",
+		.data = (void *)&(const struct gpio_rcar_info) {
+			.has_both_edge_trigger = true,
+		},
+	}, {
 		.compatible = "renesas,gpio-rcar",
 		.data = (void *)&(const struct gpio_rcar_info) {
 			.has_both_edge_trigger = false,
