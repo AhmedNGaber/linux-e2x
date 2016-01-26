@@ -32,6 +32,7 @@
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 #include <linux/platform_data/vsp1.h>
 #endif
+#include <linux/serial_sci.h>
 #include <linux/sh_dma.h>
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
@@ -297,7 +298,15 @@ static const struct clk_name clk_enables[] __initconst = {
 }
 
 static const struct sh_dmae_slave_config r8a7794x_sys_dmac_slaves[] = {
-	{},
+	SYS_DMAC_SLAVE(SCIF0, 8, 0xe6e60000, 0xc, 0x14, 0x29, 0x2a),
+	SYS_DMAC_SLAVE(SCIF1, 8, 0xe6e68000, 0xc, 0x14, 0x2d, 0x2e),
+	SYS_DMAC_SLAVE(SCIF2, 8, 0xe6e58000, 0xc, 0x14, 0x2b, 0x2c),
+	SYS_DMAC_SLAVE(SCIF3, 8, 0xe6ea8000, 0xc, 0x14, 0x2f, 0x30),
+	SYS_DMAC_SLAVE(SCIF4, 8, 0xe6ee0000, 0xc, 0x14, 0xfb, 0xfc),
+	SYS_DMAC_SLAVE(SCIF5, 8, 0xe6ee8000, 0xc, 0x14, 0xfd, 0xfe),
+	SYS_DMAC_SLAVE(HSCIF0, 8, 0xe62c0000, 0xc, 0x14, 0x39, 0x3a),
+	SYS_DMAC_SLAVE(HSCIF1, 8, 0xe62c8000, 0xc, 0x14, 0x4d, 0x4e),
+	SYS_DMAC_SLAVE(HSCIF2, 8, 0xe62d0000, 0xc, 0x14, 0x3b, 0x3c),
 };
 
 static const struct sh_dmae_channel r8a7794x_sys_dmac_channels[] = {
@@ -389,6 +398,37 @@ static struct sh_mobile_sdhi_info mmc_info = {
 	.tmio_caps	= MMC_CAP_NONREMOVABLE,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
 };
+
+/* SCIF */
+#define SCIF_PD(scif_type, index, scif_index)				\
+static struct plat_sci_port scif##index##_platform_data = {	\
+	.type		= PORT_##scif_type,			\
+	.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,	\
+	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,	\
+	.dma_slave_tx	= SYS_DMAC_SLAVE_##scif_type##scif_index##_TX,	\
+	.dma_slave_rx	= SYS_DMAC_SLAVE_##scif_type##scif_index##_RX,	\
+}
+
+#define PDATA_SCIF(index, baseaddr, irq, i) SCIF_PD(SCIF, index, i)
+#define PDATA_HSCIF(index, baseaddr, irq, i) SCIF_PD(HSCIF, index, i)
+
+PDATA_SCIF(6,   0xe6e60000, gic_spi(152), 0); /* SCIF0 */
+PDATA_SCIF(7,   0xe6e68000, gic_spi(153), 1); /* SCIF1 */
+PDATA_HSCIF(8,  0xe62c0000, gic_spi(154), 0); /* HSCIF0 */
+PDATA_HSCIF(9,  0xe62c8000, gic_spi(155), 1); /* HSCIF1 */
+PDATA_SCIF(10,  0xe6e58000, gic_spi(22), 2); /* SCIF2 */
+PDATA_SCIF(11,  0xe6ea8000, gic_spi(23), 3); /* SCIF3 */
+PDATA_SCIF(12,  0xe6ee0000, gic_spi(24), 4); /* SCIF4 */
+PDATA_SCIF(13,  0xe6ee8000, gic_spi(25), 5); /* SCIF5 */
+PDATA_HSCIF(17, 0xe6cd0000, gic_spi(21), 2); /* HSCIF2 */
+
+#define SCIF_AD(scif_type, index, baseaddr)		\
+	OF_DEV_AUXDATA("renesas," scif_type "-r8a7794x", baseaddr, \
+			"sh-sci." # index, &scif##index##_platform_data)
+
+#define AUXDATA_SCIF(index, baseaddr, irq) SCIF_AD("scif", index, baseaddr)
+#define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
+
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 /* USB-DMAC */
 static const struct sh_dmae_channel usb_dmac_channels[] = {
@@ -888,6 +928,15 @@ static struct of_dev_auxdata alex_auxdata_lookup[] __initdata = {
 			&sdhi2_info),
 	OF_DEV_AUXDATA("renesas,mmc-r8a7794x", 0xee300000, "mmc",
 			&mmc_info),
+	AUXDATA_SCIF(6,   0xe6e60000, gic_spi(152)), /* SCIF0 */
+	AUXDATA_SCIF(7,   0xe6e68000, gic_spi(153)), /* SCIF1 */
+	AUXDATA_HSCIF(8,  0xe62c0000, gic_spi(154)), /* HSCIF0 */
+	AUXDATA_HSCIF(9,  0xe62c8000, gic_spi(155)), /* HSCIF1 */
+	AUXDATA_SCIF(10,  0xe6e58000, gic_spi(22)), /* SCIF2 */
+	AUXDATA_SCIF(11,  0xe6ea8000, gic_spi(23)), /* SCIF3 */
+	AUXDATA_SCIF(12,  0xe6ee0000, gic_spi(24)), /* SCIF4 */
+	AUXDATA_SCIF(13,  0xe6ee8000, gic_spi(25)), /* SCIF5 */
+	AUXDATA_HSCIF(17, 0xe6cd0000, gic_spi(21)), /* HSCIF2 */
 	{},
 };
 
