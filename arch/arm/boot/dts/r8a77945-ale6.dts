@@ -9,9 +9,9 @@
  */
 
 /*
- * SSI-AK4643
+ * SSI-AK4642
  *
- * SW1: 1: AK4643
+ * SW1: 1: AK4642
  *      2: CN22
  *      3: ADV7511
  *
@@ -176,6 +176,21 @@
 		enable-active-high;
 	};
 
+	sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "i2s";
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&ak4642>;
+			system-clock-frequency = <12288000>;
+		};
+	};
+
 	hdmi_transmitter: adv7511 {
 		compatible = "adi,adv7511";
 		gpios = <&gpio2 29 GPIO_ACTIVE_LOW>;
@@ -276,6 +291,17 @@
 		renesas,groups = "usb1";
 		renesas,function = "usb1";
 	};
+
+	sound_pins: sound {
+		renesas,groups = "ssi0129_a_ctrl", "ssi0_a_data", "ssi1_a_data",
+		                 "ssi2_a_data", "ssi9_a_data";
+		renesas,function = "ssi";
+	};
+	sound_clk_pins: sound_clk {
+		renesas,groups = "audio_clk_c_a";
+		renesas,function = "audio_clk";
+	};
+
 };
 
 &ether {
@@ -363,4 +389,24 @@
 	vqmmc-supply = <&fixedregulator3v3>;
 	non-removable;
 	status = "okay";
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	#sound-dai-cells = <0>;
+
+	status = "okay";
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi0 &src1 &dvc0>;
+			capture  = <&ssi1 &src2 &dvc1>;
+		};
+	};
+};
+
+&ssi1 {
+	shared-pin;
 };
