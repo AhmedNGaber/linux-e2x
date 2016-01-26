@@ -104,6 +104,19 @@
 			debounce-interval = <20>;
 		};
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		led6 {
+			gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		};
+		led7 {
+			gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		};
+		led8 {
+			gpios = <&gpio5 14 GPIO_ACTIVE_HIGH>;
+		};
+	};
 };
 
 &extal_clk {
