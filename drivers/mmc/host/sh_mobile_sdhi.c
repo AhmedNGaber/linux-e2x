@@ -45,6 +45,7 @@
 /* SDHI host controller version */
 #define SDHI_VERSION_CB0D	0xCB0D
 #define SDHI_VERSION_490C	0x490C
+#define SDHI_VERSION_CC0D	0xCC0D
 
 #define EXT_ACC           0xe4
 #define SD_DMACR(x)       ((x) ? 0x192 : 0xe6)
@@ -56,6 +57,7 @@
 enum {
 	SH_MOBILE_SDHI_VER_490C = 0,
 	SH_MOBILE_SDHI_VER_CB0D,
+	SH_MOBILE_SDHI_VER_CC0D,
 	SH_MOBILE_SDHI_VER_MAX, /* SDHI max */
 };
 
@@ -71,6 +73,7 @@ static unsigned short sh_acc_size[][SH_MOBILE_SDHI_EXT_ACC_MAX] = {
 	/* { 16bit, 32bit, }, */
 	{ 0x0000, 0x0001, },	/* SH_MOBILE_SDHI_VER_490C */
 	{ 0x0001, 0x0000, },	/* SH_MOBILE_SDHI_VER_CB0D */
+	{ 0x0001, 0x0000, },	/* SH_MOBILE_SDHI_VER_CC0D */
 };
 
 struct sh_mobile_sdhi_scc {
@@ -150,6 +153,8 @@ struct sh_mobile_sdhi_vlt {
 	u32 base;		/* base address for IO voltage */
 	u32 offset;		/* offset value for IO voltage */
 	u32 mask;		/* bit mask position for IO voltage */
+	u32 size;		/* bit mask size for IO voltage */
+	u32 e2x;		/* value 1 is E2X vlt register */
 };
 
 struct sh_mobile_sdhi {
@@ -200,7 +205,10 @@ static void sh_mobile_sdhi_set_ioctrl(struct tmio_mmc_host *host, int state)
 
 	ctrl = ioread32(ioctrl);
 	/* Set 1.8V/3.3V */
-	mask = 0xff << (24 - vlt->mask * 8);
+	if (vlt->e2x)
+		mask = vlt->size << vlt->mask;
+	else
+		mask = 0xff << (24 - vlt->mask * 8);
 
 	if (state == SH_MOBILE_SDHI_SIGNAL_330V)
 		ctrl |= mask;
@@ -603,7 +611,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	void __iomem *product_reg;
 #endif
 	struct sh_mobile_sdhi_vlt *vlt;
-	u32 pfcs[2], mask;
+	u32 pfcs[2], mask[2];
 	bool use_dma = true;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -666,8 +674,18 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (np && !of_property_read_u32(np, "renesas,id", &mask))
-		vlt->mask = mask;
+	if (np) {
+		if (!of_property_read_u32(np, "renesas,e2x", &vlt->e2x)) {
+			if (!of_property_read_u32_array(np, "renesas,id",
+							mask, 2)) {
+				vlt->mask = mask[0];
+				vlt->size = mask[1];
+			}
+		} else {
+			if (!of_property_read_u32(np, "renesas,id", &mask[0]))
+				vlt->mask = mask[0];
+		}
+	}
 
 	mmc_data->clk_enable = sh_mobile_sdhi_clk_enable;
 	mmc_data->clk_disable = sh_mobile_sdhi_clk_disable;
@@ -766,6 +784,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		priv->type = SH_MOBILE_SDHI_VER_CB0D;
 	else if (ver == SDHI_VERSION_490C)
 		priv->type = SH_MOBILE_SDHI_VER_490C;
+	else if (ver == SDHI_VERSION_CC0D)
+		priv->type = SH_MOBILE_SDHI_VER_CC0D;
 	else {
 		dev_err(host->pdata->dev, "Unknown SDHI version\n");
 		goto eirq;
