@@ -37,6 +37,10 @@
 	model = "Ale6";
 	compatible = "renesas,ale6", "renesas,r8a77945";
 
+	aliases {
+		serial0 = &scif0;
+	};
+
 	chosen {
 		bootargs = "console=ttySC0,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp";
 	};
@@ -227,7 +231,7 @@
 };
 
 &pfc {
-	pinctrl-0 = <&scif0_pins &du_pins &usb0_pins &usb1_pins>;
+	pinctrl-0 = <&du_pins &usb0_pins &usb1_pins>;
 	pinctrl-names = "default";
 
 	du_pins: du {
@@ -316,6 +320,14 @@
 		micrel,led-mode = <1>;
 	};
 };
+
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
 
 &qspi0 {
 	pinctrl-0 = <&qspi0_pins>;
