@@ -1,7 +1,7 @@
 /*
  * Renesas USB driver
  *
- * Copyright (C) 2011 Renesas Solutions Corp.
+ * Copyright (C) 2011-2016 Renesas Solutions Corp.
  * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  *
  * This program is distributed in the hope that it will be useful,
@@ -535,6 +535,22 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	total_len	= len;
 	is_short	= total_len < maxp;
 
+#ifdef CONFIG_USB_ALEX
+	/*
+	 * FIXME
+	 *
+	 * 16-bit access only
+	 */
+	if (len >= 2 && !((unsigned long)buf & 0x01)) {
+		iowrite16_rep(addr, buf, len / 2);
+		len %= 2;
+		buf += total_len - len;
+	}
+
+	/* the rest operation */
+	for (i = 0; i < len; i++)
+		iowrite8(buf[i], addr + (0x01 - (i & 0x01)));
+#else
 	/*
 	 * FIXME
 	 *
@@ -549,6 +565,7 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	/* the rest operation */
 	for (i = 0; i < len; i++)
 		iowrite8(buf[i], addr + (0x03 - (i & 0x03)));
+#endif
 
 	/*
 	 * variable update
@@ -701,6 +718,26 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 		goto usbhs_fifo_read_end;
 	}
 
+#ifdef CONFIG_USB_ALEX
+	/*
+	 * FIXME
+	 *
+	 * 16-bit access only
+	 */
+	if (len >= 2 && !((unsigned long)buf & 0x01)) {
+		ioread16_rep(addr, buf, len / 2);
+		len %= 2;
+		buf += total_len - len;
+	}
+
+	/* the rest operation */
+	for (i = 0; i < len; i++) {
+		if (!(i & 0x01))
+			data = ioread16(addr);
+
+		buf[i] = (data >> ((i & 0x01) * 8)) & 0xff;
+	}
+#else
 	/*
 	 * FIXME
 	 *
@@ -719,6 +756,7 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 
 		buf[i] = (data >> ((i & 0x03) * 8)) & 0xff;
 	}
+#endif
 
 usbhs_fifo_read_end:
 	dev_dbg(dev, "  recv %d (%d/ %d/ %d/ %d)\n",
