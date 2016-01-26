@@ -925,6 +925,7 @@ DT_MACHINE_START(ALEX_DT, "ale6")
 	.init_time	= r8a7794x_timer_init,
 	.init_machine	= alex_add_standard_devices,
 	.init_late	= shmobile_init_late,
+	.reserve	= rcar_gen2_reserve,
 	.restart	= alex_restart,
 	.dt_compat	= ale6_boards_compat_dt,
 MACHINE_END
