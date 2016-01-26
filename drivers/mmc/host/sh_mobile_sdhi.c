@@ -46,6 +46,7 @@
 #define SDHI_VERSION_CB0D	0xCB0D
 #define SDHI_VERSION_490C	0x490C
 #define SDHI_VERSION_CC0D	0xCC0D
+#define SDHI_VERSION_CC10	0xCC10
 
 #define EXT_ACC           0xe4
 #define SD_DMACR(x)       ((x) ? 0x192 : 0xe6)
@@ -58,6 +59,7 @@ enum {
 	SH_MOBILE_SDHI_VER_490C = 0,
 	SH_MOBILE_SDHI_VER_CB0D,
 	SH_MOBILE_SDHI_VER_CC0D,
+	SH_MOBILE_SDHI_VER_CC10,
 	SH_MOBILE_SDHI_VER_MAX, /* SDHI max */
 };
 
@@ -74,6 +76,7 @@ static unsigned short sh_acc_size[][SH_MOBILE_SDHI_EXT_ACC_MAX] = {
 	{ 0x0000, 0x0001, },	/* SH_MOBILE_SDHI_VER_490C */
 	{ 0x0001, 0x0000, },	/* SH_MOBILE_SDHI_VER_CB0D */
 	{ 0x0001, 0x0000, },	/* SH_MOBILE_SDHI_VER_CC0D */
+	{ 0x0001, 0x0101, },	/* SH_MOBILE_SDHI_VER_CC10 */
 };
 
 struct sh_mobile_sdhi_scc {
@@ -137,6 +140,8 @@ static const struct of_device_id sh_mobile_sdhi_of_match[] = {
 	{ .compatible = "renesas,sdhi-r8a7793", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7794", .data = &of_rcar_gen2_compatible, },
 	{ .compatible = "renesas,sdhi-r8a7794x",
+		.data = &of_rcar_gen2_compatible, },
+	{ .compatible = "renesas,mmc-r8a7794x",
 		.data = &of_rcar_gen2_compatible, },
 	{},
 };
@@ -770,8 +775,13 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->flags |= TMIO_MMC_HAS_UHS_SCC;
 	}
 
-	/* SD control register space size is 0x100, 0x200 for bus_shift=1 */
-	mmc_data->bus_shift = resource_size(res) >> 9;
+	/* SD control register space size */
+	if (resource_size(res) > 0x400) /* 0x400 for bus_shift=2 */
+		mmc_data->bus_shift = 2;
+	else if (resource_size(res) > 0x100) /* 0x100, 0x200 for bus_shift=1 */
+		mmc_data->bus_shift = 1;
+	else
+		mmc_data->bus_shift = 0;
 
 	ret = tmio_mmc_host_probe(&host, pdev, mmc_data);
 	if (ret < 0)
@@ -786,6 +796,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		priv->type = SH_MOBILE_SDHI_VER_490C;
 	else if (ver == SDHI_VERSION_CC0D)
 		priv->type = SH_MOBILE_SDHI_VER_CC0D;
+	else if (ver == SDHI_VERSION_CC10)
+		priv->type = SH_MOBILE_SDHI_VER_CC10;
 	else {
 		dev_err(host->pdata->dev, "Unknown SDHI version\n");
 		goto eirq;
