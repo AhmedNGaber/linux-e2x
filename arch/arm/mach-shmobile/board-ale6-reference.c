@@ -231,6 +231,7 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "du1", "du.1", "rcar-du-r8a7794x" },
 	{ "lvds0", "lvds.0", "rcar-du-r8a7794x" },
 	{ "dvenc", "cvbs.0", "rcar-du-r8a7794x" },
+	{ "pvrsrvkm", NULL, "pvrsrvkm" },
 };
 
 /*
