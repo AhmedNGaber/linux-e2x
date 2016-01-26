@@ -253,6 +253,7 @@ static const struct clk_name clk_names[] __initconst = {
  */
 static const struct clk_name clk_enables[] __initconst = {
 	{ "ether", NULL, "ee700000.ethernet" },
+	{ "vcp0", NULL, "vcp1" },
 };
 
 /* POWER IC */
