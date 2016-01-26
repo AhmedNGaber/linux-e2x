@@ -24,8 +24,9 @@
 
 struct rcar_gen2_usb_phy_priv {
 	struct usb_phy phy;
-	void __iomem *base;
-	struct clk *clk;
+	void __iomem *base;		/* USBHS  */
+	void __iomem *usb2_base;	/* USB2.0 */
+	struct clk *clk;		/* USBHS  */
 	spinlock_t lock;
 	int usecount;
 	u32 ugctrl2;
@@ -49,15 +50,106 @@ struct rcar_gen2_usb_phy_priv {
 
 /* USB General control register 2 */
 #define USBHS_UGCTRL2_REG		0x84
+#define USBHS_UGCTRL2_USB0		(3 << 4)
 #define USBHS_UGCTRL2_USB0_PCI		(1 << 4)
 #define USBHS_UGCTRL2_USB0_HS		(3 << 4)
 #define USBHS_UGCTRL2_USB2_PCI		(0 << 31)
 #define USBHS_UGCTRL2_USB2_SS		(1 << 31)
+#define USBHS_UGCTRL2_USB0_HOST		USBHS_UGCTRL2_USB0_PCI
+#define USBHS_UGCTRL2_MASK		0x00000031 /* bit[31:6] should be 0 */
 
 /* USB General status register */
 #define USBHS_UGSTS_REG			0x88
 #define USBHS_UGSTS_LOCK		(1 << 8)
 
+/* USB Control register */
+#define USB2_USBCTR_REG			0x00c
+#define USB2_USBCTR_DIRPD		(1 << 2)
+#define USB2_USBCTR_PLL_RST		(1 << 1)
+
+/* Overcurrent Detection Timer Setting register */
+#define USB2_OC_TIMSET_REG		0x110
+#define USB2_OC_TIMSET_INIT		0x000209ab
+
+/* Suspend/Resume Timer Setting register */
+#define USB2_SPD_RSM_TIMSET_REG		0x10c
+#define USB2_SPD_RSM_TIMSET_INIT	0x014e029b
+
+#define USB2_INT_ENABLE_REG		0x000
+#define USB2_INT_ENABLE_USBH_INTB_EN	(1 << 2)
+#define USB2_INT_ENABLE_USBH_INTA_EN	(1 << 1)
+#define USB2_INT_ENABLE_INIT		(USB2_INT_ENABLE_USBH_INTB_EN | \
+					 USB2_INT_ENABLE_USBH_INTA_EN)
+
+#ifdef CONFIG_USB_ALEX
+/* Enable USBHS internal phy */
+static int __rcar_gen2_usbhs_phy_enable(void __iomem *base,
+					void __iomem *usb2_base)
+{
+	u32 val;
+
+	/* USBHS PHY power on */
+	val = ioread32(base + USBHS_UGCTRL_REG);
+	val &= ~USBHS_UGCTRL_PLLRESET;
+	iowrite32(val, base + USBHS_UGCTRL_REG);
+
+	val = readl(usb2_base + USB2_USBCTR_REG);
+	val |= USB2_USBCTR_PLL_RST;
+	writel(val, usb2_base + USB2_USBCTR_REG);
+	val &= ~USB2_USBCTR_PLL_RST;
+	writel(val, usb2_base + USB2_USBCTR_REG);
+
+	/* Power on HSUSB PHY */
+	val = readw(base + USBHS_LPSTS_REG);
+	val |= USBHS_LPSTS_SUSPM;
+	writew(val, base + USBHS_LPSTS_REG);
+
+	return 0;
+}
+
+/* Disable USBHS internal phy */
+static int __rcar_gen2_usbhs_phy_disable(void __iomem *base)
+{
+	u32 val;
+
+	/* Power off HSUSB PHY */
+	val = readw(base + USBHS_LPSTS_REG);
+	val &= ~USBHS_LPSTS_SUSPM;
+	writew(val, base + USBHS_LPSTS_REG);
+
+	return 0;
+}
+
+/* Setup USB channels */
+static void __rcar_gen2_usb_phy_init(struct rcar_gen2_usb_phy_priv *priv)
+{
+	void __iomem *usb2_base = priv->usb2_base;
+	void __iomem *hsusb_base = priv->base;
+	u32 val;
+
+	/* Since ops->init() is called once, this driver enables both clocks */
+	clk_prepare_enable(priv->clk);
+
+	/* Initialize USB2 part */
+	writel(USB2_INT_ENABLE_INIT, usb2_base + USB2_INT_ENABLE_REG);
+	writel(USB2_SPD_RSM_TIMSET_INIT, usb2_base + USB2_SPD_RSM_TIMSET_REG);
+	writel(USB2_OC_TIMSET_INIT, usb2_base + USB2_OC_TIMSET_REG);
+
+	/* Initialize HSUSB part */
+	val = readl(hsusb_base + USBHS_UGCTRL2_REG);
+	val = (val & ~USBHS_UGCTRL2_USB0) |
+	      USBHS_UGCTRL2_USB0_HOST;
+	writel(val & USBHS_UGCTRL2_MASK, hsusb_base + USBHS_UGCTRL2_REG);
+}
+
+/* Shutdown USB channels */
+static void __rcar_gen2_usb_phy_shutdown(struct rcar_gen2_usb_phy_priv *priv)
+{
+	__rcar_gen2_usbhs_phy_disable(priv->base);
+	writel(0, priv->usb2_base + USB2_INT_ENABLE_REG);
+	clk_disable_unprepare(priv->clk);
+}
+#else
 /* Enable USBHS internal phy */
 static int __rcar_gen2_usbhs_phy_enable(void __iomem *base)
 {
@@ -128,6 +220,7 @@ static void __rcar_gen2_usb_phy_shutdown(struct rcar_gen2_usb_phy_priv *priv)
 	__rcar_gen2_usbhs_phy_disable(priv->base);
 	clk_disable_unprepare(priv->clk);
 }
+#endif
 
 static int rcar_gen2_usb_phy_set_suspend(struct usb_phy *phy, int suspend)
 {
@@ -136,18 +229,40 @@ static int rcar_gen2_usb_phy_set_suspend(struct usb_phy *phy, int suspend)
 	int retval;
 	struct platform_device *pdev = priv->pdev;
 	struct resource *res;
+#ifdef CONFIG_USB_ALEX
+	struct resource *usb2_res;
+#endif
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
+#ifdef CONFIG_USB_ALEX
+	usb2_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	priv->usb2_base = devm_ioremap_resource(&pdev->dev, usb2_res);
+	if (IS_ERR(priv->usb2_base))
+		return PTR_ERR(priv->usb2_base);
+#endif
+
 	spin_lock_irqsave(&priv->lock, flags);
+
+#ifdef CONFIG_USB_ALEX
+	retval = suspend ? __rcar_gen2_usbhs_phy_disable(priv->base) :
+			   __rcar_gen2_usbhs_phy_enable(priv->base,
+							priv->usb2_base);
+#else
 	retval = suspend ? __rcar_gen2_usbhs_phy_disable(priv->base) :
 			   __rcar_gen2_usbhs_phy_enable(priv->base);
+#endif
 
 	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
 	devm_iounmap(&pdev->dev, priv->base);
+#ifdef CONFIG_USB_ALEX
+	devm_release_mem_region(&pdev->dev, usb2_res->start,
+				resource_size(usb2_res));
+	devm_iounmap(&pdev->dev, priv->usb2_base);
+#endif
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -166,11 +281,20 @@ static int rcar_gen2_usb_phy_init(struct usb_phy *phy)
 	if (!priv->usecount++) {
 		struct platform_device *pdev = priv->pdev;
 		struct resource *res;
+#ifdef CONFIG_USB_ALEX
+		struct resource *usb2_res;
+#endif
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		priv->base = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(priv->base))
 			return PTR_ERR(priv->base);
+#ifdef CONFIG_USB_ALEX
+		usb2_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		priv->usb2_base = devm_ioremap_resource(&pdev->dev, usb2_res);
+		if (IS_ERR(priv->usb2_base))
+			return PTR_ERR(priv->usb2_base);
+#endif
 
 		spin_lock_irqsave(&priv->lock, flags);
 		__rcar_gen2_usb_phy_init(priv);
@@ -178,6 +302,11 @@ static int rcar_gen2_usb_phy_init(struct usb_phy *phy)
 		devm_release_mem_region(&pdev->dev, res->start,
 							resource_size(res));
 		devm_iounmap(&pdev->dev, priv->base);
+#ifdef CONFIG_USB_ALEX
+		devm_release_mem_region(&pdev->dev, usb2_res->start,
+					resource_size(usb2_res));
+		devm_iounmap(&pdev->dev, priv->usb2_base);
+#endif
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 	return 0;
@@ -198,17 +327,32 @@ static void rcar_gen2_usb_phy_shutdown(struct usb_phy *phy)
 	if (!--priv->usecount) {
 		struct platform_device *pdev = priv->pdev;
 		struct resource *res;
+#ifdef CONFIG_USB_ALEX
+		struct resource *usb2_res;
+#endif
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		priv->base = devm_ioremap_resource(&pdev->dev, res);
 		if (IS_ERR(priv->base))
 			dev_err(phy->dev, "ioremap failed\n");
 
+#ifdef CONFIG_USB_ALEX
+		usb2_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		priv->usb2_base = devm_ioremap_resource(&pdev->dev, usb2_res);
+		if (IS_ERR(priv->usb2_base))
+			dev_err(phy->dev, "ioremap failed\n");
+#endif
+
 		__rcar_gen2_usb_phy_shutdown(priv);
 
 		devm_release_mem_region(&pdev->dev, res->start,
 							resource_size(res));
 		devm_iounmap(&pdev->dev, priv->base);
+#ifdef CONFIG_USB_ALEX
+		devm_release_mem_region(&pdev->dev, usb2_res->start,
+					resource_size(usb2_res));
+		devm_iounmap(&pdev->dev, priv->usb2_base);
+#endif
 	}
 out:
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -284,6 +428,9 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 	struct rcar_gen2_phy_platform_data *pdata;
 	struct rcar_gen2_usb_phy_priv *priv;
 	struct clk *clk;
+#ifdef CONFIG_USB_ALEX
+	char *clk_id;
+#endif
 	int retval;
 	int gpio, irq;
 	struct workqueue_struct *work_queue;
@@ -294,7 +441,12 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_USB_ALEX
+	clk_id = (pdev->id == 0) ? "hsusb0" : "hsusb1";
+	clk = devm_clk_get(&pdev->dev, clk_id);
+#else
 	clk = devm_clk_get(&pdev->dev, "usbhs");
+#endif
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "Can't get the clock\n");
 		return PTR_ERR(clk);
@@ -316,10 +468,12 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 	priv->clk = clk;
 	priv->pdev = pdev;
 
+#ifndef CONFIG_USB_ALEX
 	priv->ugctrl2 = pdata->chan0_pci ?
 			USBHS_UGCTRL2_USB0_PCI : USBHS_UGCTRL2_USB0_HS;
 	priv->ugctrl2 |= pdata->chan2_pci ?
 			USBHS_UGCTRL2_USB2_PCI : USBHS_UGCTRL2_USB2_SS;
+#endif
 	priv->phy.dev = dev;
 	priv->phy.label = dev_name(dev);
 	priv->phy.init = rcar_gen2_usb_phy_init;
@@ -380,6 +534,15 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 		goto err_otg;
 	}
 	platform_set_drvdata(pdev, priv);
+
+#ifdef CONFIG_USB_ALEX
+	{
+		int retval = usb_phy_init(&priv->phy);
+
+		if (!retval)
+			retval = usb_phy_set_suspend(&priv->phy, 0);
+	}
+#endif
 
 	return retval;
 
@@ -448,7 +611,21 @@ static struct platform_driver rcar_gen2_usb_phy_driver = {
 	.remove = rcar_gen2_usb_phy_remove,
 };
 
+#ifdef CONFIG_USB_ALEX
+static int __init phy_rcar_gen2_platform_init(void)
+{
+	return platform_driver_register(&rcar_gen2_usb_phy_driver);
+}
+subsys_initcall(phy_rcar_gen2_platform_init);
+
+static void __exit phy_rcar_gen2_platform_cleanup(void)
+{
+	platform_driver_unregister(&rcar_gen2_usb_phy_driver);
+}
+module_exit(phy_rcar_gen2_platform_cleanup);
+#else
 module_platform_driver(rcar_gen2_usb_phy_driver);
+#endif
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car Gen2 USB phy");

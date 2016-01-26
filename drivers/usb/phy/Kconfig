@@ -239,4 +239,10 @@ config USB_ZYNQ_PHY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called xilinx_usbps_otg.
+
+config USB_ALEX
+	tristate "ALE4 and ALE6 support"
+	help
+	  Enable this to support ALE4 and ALE6.
+
 endmenu
