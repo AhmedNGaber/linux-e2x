@@ -21,6 +21,9 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
+#include <linux/mfd/tmio.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
 #include <linux/platform_data/rcar-du.h>
@@ -357,6 +360,35 @@ static void __init alex_add_dmac_prototype(void)
 	r8a7794x_register_sys_dmac(0);
 	r8a7794x_register_sys_dmac(1);
 }
+
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.dma_slave_tx   = 0,
+	.dma_slave_rx   = 0,
+	.dma_rx_offset  = 0,
+
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+			  MMC_CAP_POWER_OFF_CARD,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static struct sh_mobile_sdhi_info sdhi2_info = {
+	.dma_slave_tx   = 0,
+	.dma_slave_rx   = 0,
+	.dma_rx_offset  = 0,
+
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
+			  MMC_CAP_POWER_OFF_CARD,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static struct sh_mobile_sdhi_info mmc_info = {
+	.dma_slave_tx   = 0,
+	.dma_slave_rx   = 0,
+	.dma_rx_offset  = 0,
+
+	.tmio_caps	= MMC_CAP_NONREMOVABLE,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 /* USB-DMAC */
 static const struct sh_dmae_channel usb_dmac_channels[] = {
@@ -849,6 +881,16 @@ static void __init alex_add_vsp1_devices(void)
 }
 #endif
 
+static struct of_dev_auxdata alex_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("renesas,sdhi-r8a7794x", 0xee100000, "sdhi0",
+			&sdhi0_info),
+	OF_DEV_AUXDATA("renesas,sdhi-r8a7794x", 0xee160000, "sdhi2",
+			&sdhi2_info),
+	OF_DEV_AUXDATA("renesas,mmc-r8a7794x", 0xee300000, "mmc",
+			&mmc_info),
+	{},
+};
+
 static void __init alex_add_standard_devices(void)
 {
 	shmobile_clk_workaround(clk_names, ARRAY_SIZE(clk_names), false);
@@ -856,7 +898,7 @@ static void __init alex_add_standard_devices(void)
 	r8a7794x_add_dt_devices();
 	alex_add_dmac_prototype();
 	of_platform_populate(NULL, of_default_bus_match_table,
-			     NULL, NULL);
+			     alex_auxdata_lookup, NULL);
 	alex_add_du_device();
 
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
