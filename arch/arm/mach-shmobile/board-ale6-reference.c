@@ -19,6 +19,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
@@ -241,6 +242,58 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "ether", NULL, "ee700000.ethernet" },
 };
 
+/* POWER IC */
+#define DA9063_REG_CONTROL_F	0x13
+#define DA9063_REG_LDO5_CONT	0x2a
+
+static struct i2c_board_info poweric_i2c[] = {
+	{ I2C_BOARD_INFO("da9063", 0x5A), },
+};
+
+static void alex_restart(char mode, const char *cmd)
+{
+	struct i2c_adapter *adap;
+	struct i2c_client *client;
+	u8 val;
+	int busnum = 1;
+	s32 ret;
+
+	adap = i2c_get_adapter(busnum);
+	if (!adap) {
+		pr_err("failed to get adapter i2c%d\n", busnum);
+		return;
+	}
+
+	client = i2c_new_device(adap, &poweric_i2c[0]);
+	if (!client)
+		pr_err("failed to register %s to i2c%d\n",
+		       poweric_i2c[0].type, busnum);
+
+	i2c_put_adapter(adap);
+
+	ret = i2c_smbus_read_byte_data(client, DA9063_REG_LDO5_CONT);
+
+	if (ret < 0) {
+		pr_err("couldn't access da9063 reg 0x%x err=%d, aborting\n",
+			DA9063_REG_LDO5_CONT, ret);
+		return;
+	}
+
+	val = ret | 0x08;
+
+	i2c_smbus_write_byte_data(client, DA9063_REG_LDO5_CONT, val);
+
+	ret = i2c_smbus_read_byte_data(client, DA9063_REG_CONTROL_F);
+
+	if (ret < 0)
+		pr_err("couldn't access da9063 reg 0x%x err=%d\n",
+			DA9063_REG_CONTROL_F, ret);
+
+	val = ret | 0x02;
+
+	i2c_smbus_write_byte_data(client, DA9063_REG_CONTROL_F, val);
+}
+
 static void __init alex_add_standard_devices(void)
 {
 	shmobile_clk_workaround(clk_names, ARRAY_SIZE(clk_names), false);
@@ -263,5 +316,6 @@ DT_MACHINE_START(ALEX_DT, "ale6")
 	.init_time	= r8a7794x_timer_init,
 	.init_machine	= alex_add_standard_devices,
 	.init_late	= shmobile_init_late,
+	.restart	= alex_restart,
 	.dt_compat	= ale6_boards_compat_dt,
 MACHINE_END
