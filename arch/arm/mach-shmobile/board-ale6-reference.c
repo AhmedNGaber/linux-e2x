@@ -25,7 +25,10 @@
 #include <linux/of_platform.h>
 #include <linux/platform_data/rcar-du.h>
 #include <linux/platform_data/usb-rcar-gen2-phy.h>
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 #include <linux/platform_data/vsp1.h>
+#endif
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
@@ -304,6 +307,64 @@ static void alex_restart(char mode, const char *cmd)
 	i2c_smbus_write_byte_data(client, DA9063_REG_CONTROL_F, val);
 }
 
+/* VSP1 */
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
+static const struct vsp1_platform_data alex_vsps_pdata __initconst = {
+	.features = 0,
+	.rpf_count = 5,
+	.uds_count = 3,
+	.wpf_count = 4,
+};
+
+static const struct vsp1_platform_data alex_vspd0_pdata __initconst = {
+	.features = VSP1_HAS_LIF,
+	.rpf_count = 4,
+	.uds_count = 1,
+	.wpf_count = 4,
+};
+
+static const struct vsp1_platform_data * const alex_vsp1_pdata[] __initconst
+									= {
+	&alex_vsps_pdata,
+	&alex_vspd0_pdata,
+};
+
+static const struct resource vsp1_1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfe928000, 0x8000),
+	DEFINE_RES_IRQ(gic_spi(267)),
+};
+
+static const struct resource vsp1_2_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfe930000, 0x8000),
+	DEFINE_RES_IRQ(gic_spi(246)),
+};
+
+static const struct resource * const vsp1_resources[] __initconst = {
+	vsp1_1_resources,
+	vsp1_2_resources,
+};
+
+static void __init alex_add_vsp1_devices(void)
+{
+	struct platform_device_info info = {
+		.name = "vsp1",
+		.size_data = sizeof(*alex_vsp1_pdata[0]),
+		.num_res = 2,
+		.dma_mask = DMA_BIT_MASK(32),
+	};
+	unsigned int i;
+
+	for (i = 1; i < ARRAY_SIZE(vsp1_resources); ++i) {
+		info.id = i + 1;
+		info.data = alex_vsp1_pdata[i];
+		info.res = vsp1_resources[i];
+
+		platform_device_register_full(&info);
+	}
+}
+#endif
+
 static void __init alex_add_standard_devices(void)
 {
 	shmobile_clk_workaround(clk_names, ARRAY_SIZE(clk_names), false);
@@ -312,6 +373,10 @@ static void __init alex_add_standard_devices(void)
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     NULL, NULL);
 	alex_add_du_device();
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
+!defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
+	alex_add_vsp1_devices();
+#endif
 }
 
 static const char * const ale6_boards_compat_dt[] __initconst = {
