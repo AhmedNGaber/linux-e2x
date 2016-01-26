@@ -69,6 +69,16 @@
 		renesas,groups = "eth_link", "eth_mdio", "eth_rmii";
 		renesas,function = "eth";
 	};
+
+	qspi0_pins: spi0 {
+		renesas,groups = "qspi0_ctrl", "qspi0_data4";
+		renesas,function = "qspi0";
+	};
+
+	qspi1_pins: spi1 {
+		renesas,groups = "qspi1_ctrl", "qspi1_data4";
+		renesas,function = "qspi1";
+	};
 };
 
 &ether {
@@ -82,4 +92,46 @@
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
 	};
+};
+
+&qspi0 {
+	pinctrl-0 = <&qspi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	flash: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spansion,s25fl512s";
+		reg = <0>;
+		spi-max-frequency = <30000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		m25p,fast-read;
+		spi-cpol;
+		spi-cpha;
+
+		partition@0 {
+			label = "loader";
+			reg = <0x00000000 0x00080000>;
+			read-only;
+		};
+		partition@40000 {
+			label = "user";
+			reg = <0x00080000 0x00580000>;
+			read-only;
+		};
+		partition@440000 {
+			label = "flash";
+			reg = <0x00600000 0x03a00000>;
+		};
+	};
+};
+
+&qspi1 {
+	pinctrl-0 = <&qspi1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
 };
