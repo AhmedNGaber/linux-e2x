@@ -1,7 +1,7 @@
 /*
  * SuperH Pin Function Controller support.
  *
- * Copyright (C) 2014  Renesas Electronics Corporation
+ * Copyright (C) 2014 - 2015  Renesas Electronics Corporation
  * Copyright (C) 2012  Renesas Solutions Corp.
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -75,6 +75,7 @@ extern const struct sh_pfc_soc_info r8a7790_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7791_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7793_pinmux_info;
 extern const struct sh_pfc_soc_info r8a7794_pinmux_info;
+extern const struct sh_pfc_soc_info r8a7794x_pinmux_info;
 extern const struct sh_pfc_soc_info sh7203_pinmux_info;
 extern const struct sh_pfc_soc_info sh7264_pinmux_info;
 extern const struct sh_pfc_soc_info sh7269_pinmux_info;
