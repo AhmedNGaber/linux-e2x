@@ -273,6 +273,8 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "ehci1", NULL, "ehci-platform.1" },
 	{ "vcp0", NULL, "vcp1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
+	{ "sys-dmac1", NULL, "sh-dma-engine.2" },
+	{ "sys-dmac0", NULL, "sh-dma-engine.3" },
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 	{ "usbdmac0", NULL, "sh-dma-engine.4" },
 	{ "usbdmac1", NULL, "sh-dma-engine.5" },
