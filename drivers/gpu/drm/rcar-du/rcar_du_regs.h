@@ -518,4 +518,72 @@
 #define GCBCR			0x11098
 #define BCBCR			0x1109c
 
+/* -----------------------------------------------------------------------------
+ * RGB-YC Conversion Coefficient Registers
+ */
+
+#define YCLRGBP_DU1_MASK	0x1fff0000
+#define YCLRGBP_DU0_MASK	0x00001fff
+#define YCLAP_DU1_MASK		0x00ff0000
+#define YCLAP_DU0_MASK		0x000000ff
+
+#define YCLRP			0x14000
+#define YCLRP_DU1(x)		((x << 16) & YCLRGBP_DU1_MASK)
+#define YCLRP_DU0(x)		((x <<  0) & YCLRGBP_DU0_MASK)
+
+#define YCLGP			0x14004
+#define YCLGP_DU1(x)		((x << 16) & YCLRGBP_DU1_MASK)
+#define YCLGP_DU0(x)		((x <<  0) & YCLRGBP_DU0_MASK)
+
+#define YCLBP			0x14008
+#define YCLBP_DU1(x)		((x << 16) & YCLRGBP_DU1_MASK)
+#define YCLBP_DU0(x)		((x <<  0) & YCLRGBP_DU0_MASK)
+
+#define YCLAP			0x1400C
+#define YCLAP_DU1(x)		((x << 16) & YCLAP_DU1_MASK)
+#define YCLAP_DU0(x)		((x <<  0) & YCLAP_DU0_MASK)
+
+#define CBCLRGBP_DU1_MASK	0x1fff0000
+#define CBCLRGBP_DU0_MASK	0x00001fff
+#define CBCLAP_DU1_MASK		0x00ff0000
+#define CBCLAP_DU0_MASK		0x000000ff
+
+#define CBCLRP			0x14010
+#define CBCLRP_DU1(x)		((x << 16) & CBCLRGBP_DU1_MASK)
+#define CBCLRP_DU0(x)		((x <<  0) & CBCLRGBP_DU0_MASK)
+
+#define CBCLGP			0x14014
+#define CBCLGP_DU1(x)		((x << 16) & CBCLRGBP_DU1_MASK)
+#define CBCLGP_DU0(x)		((x <<  0) & CBCLRGBP_DU0_MASK)
+
+#define CBCLBP			0x14018
+#define CBCLBP_DU1(x)		((x << 16) & CBCLRGBP_DU1_MASK)
+#define CBCLBP_DU0(x)		((x <<  0) & CBCLRGBP_DU0_MASK)
+
+#define CBCLAP			0x1401C
+#define CBCLAP_DU1(x)		((x << 16) & CBCLAP_DU1_MASK)
+#define CBCLAP_DU0(x)		((x <<  0) & CBCLAP_DU0_MASK)
+
+#define CRCLRGBP_DU1_MASK	0x1fff0000
+#define CRCLRGBP_DU0_MASK	0x00001fff
+#define CRCLAP_DU1_MASK		0x00ff0000
+#define CRCLAP_DU0_MASK		0x000000ff
+
+#define CRCLRP			0x14020
+#define CRCLRP_DU1(x)		((x << 16) & CRCLRGBP_DU1_MASK)
+#define CRCLRP_DU0(x)		((x <<  0) & CRCLRGBP_DU0_MASK)
+
+#define CRCLGP			0x14024
+#define CRCLGP_DU1(x)		((x << 16) & CRCLRGBP_DU1_MASK)
+#define CRCLGP_DU0(x)		((x <<  0) & CRCLRGBP_DU0_MASK)
+
+#define CRCLBP			0x14028
+#define CRCLBP_DU1(x)		((x << 16) & CRCLRGBP_DU1_MASK)
+#define CRCLBP_DU0(x)		((x <<  0) & CRCLRGBP_DU0_MASK)
+
+#define CRCLAP			0x1402C
+#define CRCLAP_DU1(x)		((x << 16) & CRCLAP_DU1_MASK)
+#define CRCLAP_DU0(x)		((x <<  0) & CRCLAP_DU0_MASK)
+
+
 #endif /* __RCAR_DU_REGS_H__ */
