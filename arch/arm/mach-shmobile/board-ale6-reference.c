@@ -236,6 +236,9 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "du1", "du.1", "rcar-du-r8a7794x" },
 	{ "lvds0", "lvds.0", "rcar-du-r8a7794x" },
 	{ "dvenc", "cvbs.0", "rcar-du-r8a7794x" },
+	{ "hsusb0", NULL, "usb_phy_rcar_gen2.0" },
+	{ "hsusb1", NULL, "usb_phy_rcar_gen2.1" },
+	{ "vin0", NULL, "r8a7794x-vin.0" },
 	{ "vsps", NULL, NULL },
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
@@ -254,6 +257,8 @@ static const struct clk_name clk_names[] __initconst = {
  */
 static const struct clk_name clk_enables[] __initconst = {
 	{ "ether", NULL, "ee700000.ethernet" },
+	{ "ehci0", NULL, "ehci-platform.0" },
+	{ "ehci1", NULL, "ehci-platform.1" },
 	{ "vcp0", NULL, "vcp1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
 };
@@ -352,6 +357,388 @@ static void __init alex_add_dmac_prototype(void)
 	r8a7794x_register_sys_dmac(0);
 	r8a7794x_register_sys_dmac(1);
 }
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+/* USB-DMAC */
+static const struct sh_dmae_channel usb_dmac_channels[] = {
+	{
+		.offset = 0,
+	}, {
+		.offset = 0x20,
+	},
+};
+
+static const struct sh_dmae_slave_config usb_dmac_slaves[] = {
+	{
+		.slave_id	= USB_DMAC_SLAVE_USBHS_TX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE),
+	}, {
+		.slave_id	= USB_DMAC_SLAVE_USBHS_RX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE),
+	},
+};
+
+static struct sh_dmae_pdata usb_dmac_platform_data = {
+	.slave		= usb_dmac_slaves,
+	.slave_num	= ARRAY_SIZE(usb_dmac_slaves),
+	.channel	= usb_dmac_channels,
+	.channel_num	= ARRAY_SIZE(usb_dmac_channels),
+	.ts_low_shift	= USBTS_LOW_SHIFT,
+	.ts_low_mask	= USBTS_LOW_BIT << USBTS_LOW_SHIFT,
+	.ts_high_shift	= USBTS_HI_SHIFT,
+	.ts_high_mask	= USBTS_HI_BIT << USBTS_HI_SHIFT,
+	.ts_shift	= dma_usbts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_usbts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chcr_offset	= 0x14,
+	.chcr_ie_bit	= 1 << 5,
+	.dmaor_is_32bit	= 1,
+	.needs_tend_set	= 1,
+	.no_dmars	= 1,
+	.slave_only	= 1,
+};
+
+static struct resource usb_dmac_resources[] = {
+	DEFINE_RES_MEM(0xe65a0020, 0x44), /* Channel registers and DMAOR */
+	DEFINE_RES_MEM(0xe65a0000, 0x14), /* VCR/SWR/DMICR */
+	DEFINE_RES_IRQ(gic_spi(109)),
+};
+
+static const struct sh_dmae_slave_config usb_dmac1_slaves[] = {
+	{
+		.slave_id	= USB_DMAC1_SLAVE_USBHS_TX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE)
+	}, {
+		.slave_id	= USB_DMAC1_SLAVE_USBHS_RX,
+		.chcr		= USBTS_INDEX2VAL(USBTS_XMIT_SZ_32BYTE)
+	},
+};
+
+static struct sh_dmae_pdata usb_dmac1_platform_data = {
+	.slave		= usb_dmac1_slaves,
+	.slave_num	= ARRAY_SIZE(usb_dmac1_slaves),
+	.channel	= usb_dmac_channels,
+	.channel_num	= ARRAY_SIZE(usb_dmac_channels),
+	.ts_low_shift	= USBTS_LOW_SHIFT,
+	.ts_low_mask	= USBTS_LOW_BIT << USBTS_LOW_SHIFT,
+	.ts_high_shift	= USBTS_HI_SHIFT,
+	.ts_high_mask	= USBTS_HI_BIT << USBTS_HI_SHIFT,
+	.ts_shift	= dma_usbts_shift,
+	.ts_shift_num	= ARRAY_SIZE(dma_usbts_shift),
+	.dmaor_init	= DMAOR_DME,
+	.chcr_offset	= 0x14,
+	.chcr_ie_bit	= 1 << 5,
+	.dmaor_is_32bit	= 1,
+	.needs_tend_set	= 1,
+	.no_dmars	= 1,
+	.slave_only	= 1,
+};
+
+static struct resource usb_dmac1_resources[] = {
+	DEFINE_RES_MEM(0xe65b0020, 0x44), /* Channel registers and DMAO */
+	DEFINE_RES_MEM(0xe65b0000, 0x14), /* VCR/SWR/DMICR */
+	DEFINE_RES_IRQ(gic_spi(110)),
+};
+
+static void __init alex_add_usb_dmac_prototype(void)
+{
+	platform_device_register_resndata(&platform_bus, "sh-dma-engine",
+					  4,
+					  usb_dmac_resources,
+					  ARRAY_SIZE(usb_dmac_resources),
+					  &usb_dmac_platform_data,
+					  sizeof(usb_dmac_platform_data));
+
+	platform_device_register_resndata(&platform_bus, "sh-dma-engine",
+					  5,
+					  usb_dmac1_resources,
+					  ARRAY_SIZE(usb_dmac1_resources),
+					  &usb_dmac1_platform_data,
+					  sizeof(usb_dmac1_platform_data));
+
+}
+
+/* USBHS */
+static const struct resource usbhs_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6590000, 0x100),
+	DEFINE_RES_IRQ(gic_spi(107)),
+};
+
+struct usbhs_private {
+	struct renesas_usbhs_platform_info info;
+	struct usb_phy *phy;
+	int pwen_gpio;
+};
+
+#define usbhs_get_priv(pdev) \
+	container_of(renesas_usbhs_get_info(pdev), struct usbhs_private, info)
+
+static int usbhs_power_ctrl(struct platform_device *pdev,
+				void __iomem *base, int enable)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	if (!priv->phy)
+		return -ENODEV;
+
+	if (enable) {
+		int retval = usb_phy_init(priv->phy);
+
+		if (!retval)
+			retval = usb_phy_set_suspend(priv->phy, 0);
+		return retval;
+	}
+
+	usb_phy_set_suspend(priv->phy, 1);
+	usb_phy_shutdown(priv->phy);
+	return 0;
+}
+
+static int usbhs_hardware_init(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+	struct usb_phy *phy;
+	int ret;
+	struct device_node *np;
+
+	np = of_find_node_by_path("/gpio@e6055000");
+	if (np) {
+		priv->pwen_gpio = of_get_gpio(np, 24);
+		of_node_put(np);
+	} else {
+		pr_warn("Error: Unable to get PWEN GPIO line\n");
+		ret = -ENOTSUPP;
+		goto error2;
+	}
+
+	phy = usb_get_phy_dev(&pdev->dev, 0);
+	if (IS_ERR(phy)) {
+		ret = PTR_ERR(phy);
+		goto error;
+	}
+
+	priv->phy = phy;
+	return 0;
+ error:
+	gpio_free(priv->pwen_gpio);
+ error2:
+	return ret;
+}
+
+static int usbhs_hardware_exit(struct platform_device *pdev)
+{
+	struct usbhs_private *priv = usbhs_get_priv(pdev);
+
+	if (!priv->phy)
+		return 0;
+
+	usb_put_phy(priv->phy);
+	priv->phy = NULL;
+	gpio_free(priv->pwen_gpio);
+	return 0;
+}
+
+static int usbhs_get_id(struct platform_device *pdev)
+{
+	return USBHS_GADGET;
+}
+
+static int usbhs_get_vbus(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static u32 alex_usbhs_pipe_type[] = {
+	USB_ENDPOINT_XFER_CONTROL,
+	USB_ENDPOINT_XFER_ISOC,
+	USB_ENDPOINT_XFER_ISOC,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_INT,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+	USB_ENDPOINT_XFER_BULK,
+};
+
+static struct usbhs_private usbhs_priv __initdata = {
+	.info = {
+		.platform_callback = {
+			.power_ctrl	= usbhs_power_ctrl,
+			.hardware_init	= usbhs_hardware_init,
+			.hardware_exit	= usbhs_hardware_exit,
+			.get_id		= usbhs_get_id,
+			.get_vbus	= usbhs_get_vbus,
+		},
+		.driver_param = {
+			.buswait_bwait	= 9,
+			.pipe_type = alex_usbhs_pipe_type,
+			.pipe_size = ARRAY_SIZE(alex_usbhs_pipe_type),
+			.d0_rx_id	= USB_DMAC_SLAVE_USBHS_RX,
+			.d1_tx_id	= USB_DMAC_SLAVE_USBHS_TX,
+			.d2_rx_id	= USB_DMAC1_SLAVE_USBHS_RX,
+			.d3_tx_id	= USB_DMAC1_SLAVE_USBHS_TX,
+			.usb_dmac_xfer_size = 32,
+		},
+	}
+};
+
+static void __init alex_register_usbhs(void)
+{
+	usb_bind_phy("renesas_usbhs", 0, "usb_phy_rcar_gen2");
+	platform_device_register_resndata(&platform_bus,
+					  "renesas_usbhs", -1,
+					  usbhs_resources,
+					  ARRAY_SIZE(usbhs_resources),
+					  &usbhs_priv.info,
+					  sizeof(usbhs_priv.info));
+}
+
+#else
+/* USB2 PHY 0 */
+static const struct resource usb2phy0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6590100, 0x100),	/* MEM */
+	DEFINE_RES_MEM(0xee080200, 0x6ff),	/* MEM */
+};
+
+static const struct rcar_gen2_phy_platform_data usb2phy0_pdata __initconst = {
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	.gpio_vbus = 857,
+	.wakeup = true,
+#else
+	.gpio_vbus = -1,
+	.wakeup = false,
+#endif
+};
+
+static const struct platform_device_info usb2phy0_info __initconst = {
+	.name		= "usb_phy_rcar_gen2",
+	.id		= 0,
+	.res		= usb2phy0_resources,
+	.num_res	= ARRAY_SIZE(usb2phy0_resources),
+	.data		= &usb2phy0_pdata,
+	.size_data	= sizeof(usb2phy0_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+/* EHCI 0 */
+static const struct resource ehci0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee080100, 0xff),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(108)),
+};
+
+static const struct platform_device_info ehci0_info __initconst = {
+	.name		= "ehci-platform",
+	.id		= 0,
+	.res		= ehci0_resources,
+	.num_res	= ARRAY_SIZE(ehci0_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+/* OHCI 0 */
+static const struct resource ohci0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee080000, 0xff),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(108)),
+};
+
+static const struct platform_device_info ohci0_info __initconst = {
+	.name		= "ohci-platform",
+	.id		= 0,
+	.res		= ohci0_resources,
+	.num_res	= ARRAY_SIZE(ohci0_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static void __init alex_add_usb0_device(void)
+{
+	usb_bind_phy("ohci-platform.0", 0, "usb_phy_rcar_gen2.0");
+	usb_bind_phy("ehci-platform.0", 0, "usb_phy_rcar_gen2.0");
+	platform_device_register_full(&usb2phy0_info);
+	platform_device_register_full(&ehci0_info);
+	platform_device_register_full(&ohci0_info);
+}
+#endif
+/* USBHS PHY */
+static const struct rcar_gen2_phy_platform_data usbhs_phy_pdata __initconst = {
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	.chan0_pci = 0,	/* Channel 0 is USBHS */
+	.gpio_vbus = 857,
+	.wakeup = true,
+#else
+	.chan0_pci = 1,	/* Channel 0 is PCI USB */
+	.gpio_vbus = -1,
+	.wakeup = false,
+#endif
+	.chan2_pci = 1,	/* Channel 2 is PCI USB */
+};
+
+static const struct resource usbhs_phy_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6590100, 0x100),
+};
+
+/* USB2 PHY 1 */
+static const struct resource usb2phy1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6598100, 0x100),	/* MEM */
+	DEFINE_RES_MEM(0xee0C0200, 0x6ff),	/* MEM */
+};
+
+static const struct rcar_gen2_phy_platform_data usb2phy1_pdata __initconst = {
+	.gpio_vbus = -1,
+	.wakeup = false,
+};
+
+static const struct platform_device_info usb2phy1_info __initconst = {
+	.name		= "usb_phy_rcar_gen2",
+	.id		= 1,
+	.res		= usb2phy1_resources,
+	.num_res	= ARRAY_SIZE(usb2phy1_resources),
+	.data		= &usb2phy1_pdata,
+	.size_data	= sizeof(usb2phy1_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+/* EHCI 1 */
+static const struct resource ehci1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee0C0100, 0xff),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(113)),
+};
+
+static const struct platform_device_info ehci1_info __initconst = {
+	.name		= "ehci-platform",
+	.id		= 1,
+	.res		= ehci1_resources,
+	.num_res	= ARRAY_SIZE(ehci1_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+/* OHCI 1 */
+static const struct resource ohci1_resources[] __initconst = {
+	DEFINE_RES_MEM(0xee0c0000, 0xff),	/* MEM */
+	DEFINE_RES_IRQ(gic_spi(113)),
+};
+
+static const struct platform_device_info ohci1_info __initconst = {
+	.name		= "ohci-platform",
+	.id		= 1,
+	.res		= ohci1_resources,
+	.num_res	= ARRAY_SIZE(ohci1_resources),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
+
+static void __init alex_add_usb1_device(void)
+{
+	usb_bind_phy("ohci-platform.1", 0, "usb_phy_rcar_gen2.1");
+	usb_bind_phy("ehci-platform.1", 0, "usb_phy_rcar_gen2.1");
+	platform_device_register_full(&usb2phy1_info);
+	platform_device_register_full(&ehci1_info);
+	platform_device_register_full(&ohci1_info);
+}
+
 /* POWER IC */
 #define DA9063_REG_CONTROL_F	0x13
 #define DA9063_REG_LDO5_CONT	0x2a
@@ -471,6 +858,13 @@ static void __init alex_add_standard_devices(void)
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     NULL, NULL);
 	alex_add_du_device();
+
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	alex_register_usbhs();
+#else
+	alex_add_usb0_device();
+#endif
+	alex_add_usb1_device();
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	alex_add_vsp1_devices();
