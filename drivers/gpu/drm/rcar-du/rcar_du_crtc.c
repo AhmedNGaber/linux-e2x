@@ -885,7 +885,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 		if ((rcdu->info->chip == RCAR_M2) ||
 			(rcdu->info->chip == RCAR_M2N))
 			crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
-		if (rcdu->info->chip == RCAR_E2)
+		if ((rcdu->info->chip == RCAR_E2) ||
+			(rcdu->info->chip == RCAR_E2X))
 			crtc->connector_type = DRM_MODE_CONNECTOR_LVDS;
 	}
 #endif
@@ -901,6 +902,16 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 			crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
 	}
 #endif
+#if !defined(CONFIG_DRM_RCAR_CVBS) && \
+	(defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)) && \
+	defined(CONFIG_DRM_RCAR_LVDS)
+	if (pdata->init_conn_type) {
+		if ((crtc->connector_type == DRM_MODE_CONNECTOR_Composite) &&
+			(rcdu->info->chip == RCAR_E2X))
+			crtc->connector_type = DRM_MODE_CONNECTOR_LVDS;
+	}
+#endif
+
 	rcrtc->plane->crtc = crtc;
 	rcrtc->plane->fb_plane = true;
 

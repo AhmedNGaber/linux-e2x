@@ -50,6 +50,7 @@ enum chip_id {
 	RCAR_M2,
 	RCAR_M2N,
 	RCAR_E2,
+	RCAR_E2X,
 };
 
 /*

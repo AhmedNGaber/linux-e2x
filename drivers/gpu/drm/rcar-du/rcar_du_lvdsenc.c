@@ -21,6 +21,7 @@
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
 #include "rcar_du_lvdsenc.h"
+#include "rcar_du_lvdsenc_r8a7794x.h"
 #include "rcar_lvds_regs.h"
 
 #ifdef R8A779X_ES2_DU_LVDS_CH_DATA_GAP_WORKAROUND
@@ -57,6 +58,9 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 	unsigned long flags;
 	unsigned int wait_loop, i;
 #endif
+
+	if (lvds->dev->info->chip == RCAR_E2X)
+		return rcar_du_lvdsenc_r8a7794x_start(lvds, rcrtc);
 
 	if (lvds->dpms == DRM_MODE_DPMS_ON)
 		return 0;
@@ -201,6 +205,9 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 
 int rcar_du_lvdsenc_stop_suspend(struct rcar_du_lvdsenc *lvds)
 {
+	if (lvds->dev->info->chip == RCAR_E2X)
+		return rcar_du_lvdsenc_r8a7794x_stop_suspend(lvds);
+
 	if (lvds->dpms == DRM_MODE_DPMS_OFF)
 		return -1;
 
@@ -233,6 +240,11 @@ void rcar_du_lvdsenc_stop(struct rcar_du_lvdsenc *lvds)
 	int ret;
 	unsigned int i;
 
+	if (lvds->dev->info->chip == RCAR_E2X) {
+		rcar_du_lvdsenc_r8a7794x_stop(lvds);
+		return;
+	}
+
 	ret = rcar_du_lvdsenc_stop_suspend(lvds);
 	if (ret < 0)
 		return;
@@ -245,6 +257,9 @@ void rcar_du_lvdsenc_stop(struct rcar_du_lvdsenc *lvds)
 int rcar_du_lvdsenc_dpms(struct rcar_du_lvdsenc *lvds,
 			 struct drm_crtc *crtc, int mode)
 {
+	if (lvds->dev->info->chip == RCAR_E2X)
+		return rcar_du_lvdsenc_r8a7794x_dpms(lvds, crtc, mode);
+
 	if (mode == DRM_MODE_DPMS_OFF) {
 		rcar_du_lvdsenc_stop(lvds);
 		return 0;
