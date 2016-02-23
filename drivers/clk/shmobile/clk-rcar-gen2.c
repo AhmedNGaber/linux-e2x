@@ -167,31 +167,25 @@ static struct clk * __init cpg_z_clk_register(struct rcar_gen2_cpg *cpg)
 
 /*
  *   MD		EXTAL		PLL0	PLL1	PLL3
- * 14 13 19	(MHz)		*1	*1
- *---------------------------------------------------
- * 0  0  0	15 x 1		x172/2	x208/2	x106
- * 0  0  1	15 x 1		x172/2	x208/2	x88
- * 0  1  0	20 x 1		x130/2	x156/2	x80
- * 0  1  1	20 x 1		x130/2	x156/2	x66
- * 1  0  0	26 / 2		x200/2	x240/2	x122
- * 1  0  1	26 / 2		x200/2	x240/2	x102
- * 1  1  0	30 / 2		x172/2	x208/2	x106
- * 1  1  1	30 / 2		x172/2	x208/2	x88
+ * 14 13	(MHz)			*1	*1
+ *--------------------------------------------------
+ * 0  0		20 x 1			x80/2	x78/2	x50
+ * 0  1		26 x 1			x60/2	x60/2	x56
+ * 1  0		Prohibited setting	-	-	-
+ * 1  1		30 x 1			x52/2	x52/2	x50
  *
- * *1 :	Table 7.6 indicates VCO ouput (PLLx = VCO/2)
+ * *1 :	Table 7.5 indicates VCO ouput (PLLx = VCO/2)
  */
-#define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 12) | \
-					 (((md) & BIT(13)) >> 12) | \
-					 (((md) & BIT(19)) >> 19))
+#define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
+					 (((md) & BIT(13)) >> 13))
 struct cpg_pll_config {
 	unsigned int extal_div;
 	unsigned int pll1_mult;
 	unsigned int pll3_mult;
 };
 
-static const struct cpg_pll_config cpg_pll_configs[8] __initconst = {
-	{ 1, 208, 106 }, { 1, 208,  88 }, { 1, 156,  80 }, { 1, 156,  66 },
-	{ 2, 240, 122 }, { 2, 240, 102 }, { 2, 208, 106 }, { 2, 208,  88 },
+static const struct cpg_pll_config cpg_pll_configs[4] __initconst = {
+	{ 1, 78, 50 }, { 1, 60,  56 }, { 0, 0,  0 }, { 1, 52,  50 },
 };
 
 /* SDHI divisors */
@@ -202,9 +196,8 @@ static const struct clk_div_table cpg_sdh_div_table[] = {
 };
 
 static const struct clk_div_table cpg_sd01_div_table[] = {
-	{  4,  8 }, {  5, 12 }, {  6, 16 }, {  7, 18 },
-	{  8, 24 }, { 10, 36 }, { 11, 48 }, { 12, 10 },
-	{  0,  0 },
+	{  5, 12 }, {  6, 16 }, {  7, 18 }, {  8, 24 },
+	{ 10, 36 }, { 11, 48 }, { 12, 10 }, {  0,  0 },
 };
 
 /* -----------------------------------------------------------------------------
@@ -238,13 +231,13 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 		mult = ((value >> 24) & ((1 << 7) - 1)) + 1;
 	} else if (!strcmp(name, "pll1")) {
 		parent_name = "main";
-		mult = config->pll1_mult / 2;
+		mult = config->pll1_mult;
 	} else if (!strcmp(name, "pll3")) {
 		parent_name = "main";
 		mult = config->pll3_mult;
 	} else if (!strcmp(name, "lb")) {
 		parent_name = "pll1";
-		div = cpg_mode & BIT(18) ? 36 : 24;
+		div = 12;
 	} else if (!strcmp(name, "qspi")) {
 		parent_name = "pll1_div2";
 		div = (cpg_mode & (BIT(3) | BIT(2) | BIT(1))) == BIT(2)
