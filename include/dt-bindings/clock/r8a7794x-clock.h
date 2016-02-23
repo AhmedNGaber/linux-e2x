@@ -1,0 +1,130 @@
+/*
+ * Copyright (C) 2015 Renesas Electronics Corporation
+ * Copyright 2013 Ideas On Board SPRL
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+#ifndef __DT_BINDINGS_CLOCK_R8A7794X_H__
+#define __DT_BINDINGS_CLOCK_R8A7794X_H__
+
+/* CPG */
+#define R8A7794X_CLK_MAIN		0
+#define R8A7794X_CLK_PLL0		1
+#define R8A7794X_CLK_PLL1		2
+#define R8A7794X_CLK_PLL3		3
+#define R8A7794X_CLK_LB			4
+#define R8A7794X_CLK_QSPI		5
+#define R8A7794X_CLK_SDH		6
+#define R8A7794X_CLK_SD0		7
+#define R8A7794X_CLK_SD1		8
+#define R8A7794X_CLK_Z			9
+
+/* MSTP0 */
+#define R8A7794X_CLK_MSIOF0		0
+
+/* MSTP1 */
+#define R8A7794X_CLK_VCP0		1
+#define R8A7794X_CLK_VPC0		3
+#define R8A7794X_CLK_TMU1		11
+#define R8A7794X_CLK_PVRSRVKM		12
+#define R8A7794X_CLK_2DDMAC		15
+#define R8A7794X_CLK_FDP0		19
+#define R8A7794X_CLK_TMU3		21
+#define R8A7794X_CLK_TMU2		22
+#define R8A7794X_CLK_CMT0		24
+#define R8A7794X_CLK_VSP1_DU0		28
+#define R8A7794X_CLK_VSP1_S		31
+
+/* MSTP2 */
+#define R8A7794X_CLK_MSIOF2		5
+#define R8A7794X_CLK_MSIOF1		8
+#define R8A7794X_CLK_SYS_DMAC1		18
+#define R8A7794X_CLK_SYS_DMAC0		19
+
+/* MSTP3 */
+#define R8A7794X_CLK_SDHI2		12
+#define R8A7794X_CLK_SDHI1		13
+#define R8A7794X_CLK_SDHI0		14
+#define R8A7794X_CLK_MMCIF0		15
+#define R8A7794X_CLK_USBDMAC0_1		26
+#define R8A7794X_CLK_USBDMAC1_1		27
+#define R8A7794X_CLK_CMT1		29
+#define R8A7794X_CLK_USBDMAC0_0		30
+#define R8A7794X_CLK_USBDMAC1_0		31
+
+/* MSTP5 */
+#define R8A7794X_CLK_AUDIO_DMAC0		2
+#define R8A7794X_CLK_PWM			23
+
+/* MSTP7 */
+#define R8A7794X_CLK_EHCI0		3
+#define R8A7794X_CLK_HSUSB0		4
+#define R8A7794X_CLK_EHCI1		5
+#define R8A7794X_CLK_HSUSB1		6
+#define R8A7794X_CLK_HSCIF2		13
+#define R8A7794X_CLK_SCIF5		14
+#define R8A7794X_CLK_SCIF4		15
+#define R8A7794X_CLK_HSCIF1		16
+#define R8A7794X_CLK_HSCIF0		17
+#define R8A7794X_CLK_SCIF3		18
+#define R8A7794X_CLK_SCIF2		19
+#define R8A7794X_CLK_SCIF1		20
+#define R8A7794X_CLK_SCIF0		21
+#define R8A7794X_CLK_DU1			23
+#define R8A7794X_CLK_DU0			24
+#define R8A7794X_CLK_LVDS0			26
+#define R8A7794X_CLK_DVENC			27
+
+/* MSTP8 */
+#define R8A7794X_CLK_IPMMU_GP		0
+#define R8A7794X_CLK_VIN1		10
+#define R8A7794X_CLK_VIN0		11
+#define R8A7794X_CLK_AVB			12
+#define R8A7794X_CLK_ETHER		13
+
+/* MSTP9 */
+#define R8A7794X_CLK_GPIO5		7
+#define R8A7794X_CLK_GPIO4		8
+#define R8A7794X_CLK_GPIO3		9
+#define R8A7794X_CLK_GPIO2		10
+#define R8A7794X_CLK_GPIO1		11
+#define R8A7794X_CLK_GPIO0		12
+#define R8A7794X_CLK_QSPI_MOD1		17
+#define R8A7794X_CLK_QSPI_MOD0		18
+#define R8A7794X_CLK_I2C4		27
+#define R8A7794X_CLK_I2C3		28
+#define R8A7794X_CLK_I2C2		29
+#define R8A7794X_CLK_I2C1		30
+#define R8A7794X_CLK_I2C0		31
+
+/* MSTP10 */
+#define R8A7794X_CLK_SSI			5
+#define R8A7794X_CLK_SSI9		6
+#define R8A7794X_CLK_SSI8		7
+#define R8A7794X_CLK_SSI7		8
+#define R8A7794X_CLK_SSI6		9
+#define R8A7794X_CLK_SSI5		10
+#define R8A7794X_CLK_SSI4		11
+#define R8A7794X_CLK_SSI3		12
+#define R8A7794X_CLK_SSI2		13
+#define R8A7794X_CLK_SSI1		14
+#define R8A7794X_CLK_SSI0		15
+#define R8A7794X_CLK_SCU			17
+#define R8A7794X_CLK_DVC1		18
+#define R8A7794X_CLK_DVC0		19
+#define R8A7794X_CLK_SRC9		22
+#define R8A7794X_CLK_SRC8		23
+#define R8A7794X_CLK_SRC7		24
+#define R8A7794X_CLK_SRC6		25
+#define R8A7794X_CLK_SRC5		26
+#define R8A7794X_CLK_SRC4		27
+#define R8A7794X_CLK_SRC3		28
+#define R8A7794X_CLK_SRC2		29
+#define R8A7794X_CLK_SRC1		30
+#define R8A7794X_CLK_SRC0		31
+
+#endif /* __DT_BINDINGS_CLOCK_R8A7794X_H__ */
