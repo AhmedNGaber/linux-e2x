@@ -38,7 +38,9 @@
 #include <linux/spi/sh_msiof.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/phy.h>
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
+#endif
 #include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
@@ -255,6 +257,11 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "2ddmac", NULL, "tddmac" },
 	{ "fdp0", NULL, "fdp0" },
 	{ "pvrsrvkm", NULL, "pvrsrvkm" },
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	{ "hsusb", NULL, "renesas_usbhs" },
+#else
+	{ "ehci", NULL, "pci-rcar-gen2.0" },
+#endif
 };
 
 /*
@@ -266,6 +273,10 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "ehci1", NULL, "ehci-platform.1" },
 	{ "vcp0", NULL, "vcp1" },
 	{ "dmal", NULL, "sh-dma-engine.0" },
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	{ "usbdmac0", NULL, "sh-dma-engine.4" },
+	{ "usbdmac1", NULL, "sh-dma-engine.5" },
+#endif
 };
 
 #define DMAE_CHANNEL(a, b)			\
@@ -989,6 +1000,9 @@ static void __init alex_add_standard_devices(void)
 	shmobile_clk_workaround(clk_enables, ARRAY_SIZE(clk_enables), true);
 	r8a7794x_add_dt_devices();
 	alex_add_dmac_prototype();
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	alex_add_usb_dmac_prototype();
+#endif
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     alex_auxdata_lookup, NULL);
 	alex_add_du_device();
