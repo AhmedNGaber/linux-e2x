@@ -27,6 +27,8 @@
 #include "rcar_du_lvdsenc.h"
 #include "rcar_du_vgacon.h"
 #include "rcar_du_hdmicon.h"
+#include "rcar_du_cvbscon.h"
+#include "rcar_du_cvbsenc.h"
 #include "../i2c/adv7511.h"
 
 /* -----------------------------------------------------------------------------
@@ -51,6 +53,8 @@ static void rcar_du_encoder_dpms(struct drm_encoder *encoder, int mode)
 
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc, mode);
+	if (renc->cvbs)
+		rcar_du_cvbsenc_dpms(renc->cvbs, encoder->crtc, mode);
 
 	if (get_rcar_slave_funcs(encoder) &&
 		get_rcar_slave_funcs(encoder)->dpms)
@@ -71,6 +75,8 @@ static bool rcar_du_encoder_mode_fixup(struct drm_encoder *encoder,
 	if ((encoder->encoder_type == DRM_MODE_ENCODER_DAC)
 		|| (encoder->encoder_type == DRM_MODE_ENCODER_TMDS))
 		return true;
+
+	/* FIXME E2X-CVBS */
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
@@ -117,6 +123,9 @@ static void rcar_du_encoder_mode_prepare(struct drm_encoder *encoder)
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
 				     DRM_MODE_DPMS_OFF);
+	if (renc->cvbs)
+		rcar_du_cvbsenc_dpms(renc->cvbs, encoder->crtc,
+				     DRM_MODE_DPMS_OFF);
 
 	if (get_rcar_slave_funcs(encoder) &&
 		get_rcar_slave_funcs(encoder)->dpms)
@@ -129,6 +138,9 @@ static void rcar_du_encoder_mode_commit(struct drm_encoder *encoder)
 
 	if (renc->lvds)
 		rcar_du_lvdsenc_dpms(renc->lvds, encoder->crtc,
+				     DRM_MODE_DPMS_ON);
+	if (renc->cvbs)
+		rcar_du_cvbsenc_dpms(renc->cvbs, encoder->crtc,
 				     DRM_MODE_DPMS_ON);
 
 	if (get_rcar_slave_funcs(encoder) &&
@@ -223,7 +235,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	case RCAR_DU_OUTPUT_LVDS1:
 		renc->lvds = rcdu->lvds[1];
 		break;
-
+	case RCAR_DU_OUTPUT_CVBS:
+		renc->cvbs = rcdu->cvbs;
+		break;
 	default:
 		break;
 	}
@@ -237,6 +251,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		break;
 	case RCAR_DU_ENCODER_HDMI:
 		encoder_type = DRM_MODE_ENCODER_TMDS;
+		break;
+	case RCAR_DU_ENCODER_CVBS:
+		encoder_type = DRM_MODE_ENCODER_TVDAC;
 		break;
 	case RCAR_DU_ENCODER_NONE:
 	default:
@@ -277,6 +294,9 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 	case DRM_MODE_ENCODER_DAC:
 		return rcar_du_vga_connector_init(rcdu, renc);
 
+	case DRM_MODE_ENCODER_TVDAC:
+		return rcar_du_cvbs_connector_init(rcdu, renc,
+						&data->connector.cvbs);
 	default:
 		return -EINVAL;
 	}
