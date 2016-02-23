@@ -528,7 +528,7 @@ int rsnd_adg_probe(struct platform_device *pdev,
 	of_property_read_string(np_clk, "renesas,groups", &name);
 
 	for (i = 0; i < CLKMAX; i++) {
-		if (!strcmp(name, clk_name[i])) {
+		if (!strncmp(name, clk_name[i], strlen(clk_name[i]))) {
 			adg->quick_hack_used_clk = i;
 			break;
 		}
