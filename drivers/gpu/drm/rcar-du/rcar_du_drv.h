@@ -26,6 +26,7 @@ struct drm_device;
 struct drm_fbdev_cma;
 struct rcar_du_device;
 struct rcar_du_lvdsenc;
+struct rcar_du_cvbsenc;
 
 #define R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND
 #define R8A779X_ES2_DU_LVDS_CH_DATA_GAP_WORKAROUND
@@ -82,6 +83,7 @@ struct rcar_du_device_info {
 	unsigned int num_crtcs;
 	struct rcar_du_output_routing routes[RCAR_DU_OUTPUT_MAX];
 	unsigned int num_lvds;
+	unsigned int num_cvbs;
 	unsigned int drgbs_bit;
 	unsigned int max_xres;
 	unsigned int max_yres;
@@ -89,6 +91,7 @@ struct rcar_du_device_info {
 	unsigned int cpu_clk_time_ps;
 	unsigned int lvds0_crtc;
 	unsigned int lvds1_crtc;
+	unsigned int cvbs_crtc;
 	unsigned int vspd_crtc;
 	enum chip_id chip;
 	bool drgbs_use;
@@ -120,6 +123,7 @@ struct rcar_du_device {
 	unsigned int vspd1_sink;
 
 	struct rcar_du_lvdsenc *lvds[2];
+	struct rcar_du_cvbsenc *cvbs;
 	unsigned int crtcs_connect_id[3];
 #ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
 	unsigned int vsp_reserve;

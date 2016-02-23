@@ -42,6 +42,7 @@ struct rcar_du_crtc {
 	struct rcar_du_group *group;
 	struct rcar_du_plane *plane;
 	int lvds_ch;
+	int cvbs_ch;
 	unsigned int dptsr_read;
 	unsigned int use_count;
 
