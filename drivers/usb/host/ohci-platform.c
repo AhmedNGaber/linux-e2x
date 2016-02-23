@@ -84,6 +84,8 @@ static const struct hc_driver ohci_platform_hc_driver = {
 	.start_port_reset	= ohci_start_port_reset,
 };
 
+static struct usb_ohci_pdata ohci_platform_defaults;
+
 static int ohci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
@@ -92,13 +94,17 @@ static int ohci_platform_probe(struct platform_device *dev)
 	int irq;
 	int err = -ENOMEM;
 
-	if (!pdata) {
-		WARN_ON(1);
-		return -ENODEV;
-	}
-
 	if (usb_disabled())
 		return -ENODEV;
+
+	/*
+	 * Use reasonable defaults so platforms don't have to provide these
+	 * with DT probing on ARM.
+	 */
+	if (!pdata) {
+		pdata = &ohci_platform_defaults;
+		dev->dev.platform_data = pdata;
+	}
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
