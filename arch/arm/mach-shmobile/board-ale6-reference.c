@@ -40,6 +40,176 @@
 #include "r8a7794x.h"
 #include "rcar-gen2.h"
 
+/* DU */
+static struct rcar_du_encoder_data alex_du_encoders[] = {
+	{
+		.type = RCAR_DU_ENCODER_HDMI,
+		.output = RCAR_DU_OUTPUT_DPAD0,
+	},
+	{
+		.type = RCAR_DU_ENCODER_NONE,
+		.output = RCAR_DU_OUTPUT_LVDS0,
+		.connector.lvds.panel = {
+			.width_mm = 246,
+			.height_mm = 185,
+			.mode = {
+				.clock = 71000,
+				.hdisplay = 1280,
+				.hsync_start = 1360,
+				.hsync_end = 1392,
+				.htotal = 1424,
+				.vdisplay = 800,
+				.vsync_start = 803,
+				.vsync_end = 804,
+				.vtotal = 812,
+				.flags = 0,
+			},
+		},
+	},
+	{
+		.type = RCAR_DU_ENCODER_NONE,
+		.output = RCAR_DU_OUTPUT_CVBS,
+		.connector.cvbs = {
+			.tvsys = 0,
+			.modes = {
+				{	/* 480i(525i) mode */
+					.clock = 13500,
+					.hdisplay = 720,
+					.hsync_start = 737,
+					.hsync_end = 797,
+					.htotal = 858,
+					.vdisplay = 480,
+					.vsync_start = 489,
+					.vsync_end = 501,
+					.vtotal = 525,
+					.flags = DRM_MODE_FLAG_INTERLACE |
+						 DRM_MODE_FLAG_PVSYNC |
+						 DRM_MODE_FLAG_PHSYNC,
+				},
+				{	/* 576i(625i) mode */
+					.clock = 13500,
+					.hdisplay = 720,
+					.hsync_start = 732,
+					.hsync_end = 796,
+					.htotal = 864,
+					.vdisplay = 576,
+					.vsync_start = 581,
+					.vsync_end = 586,
+					.vtotal = 625,
+					.flags = DRM_MODE_FLAG_INTERLACE |
+						 DRM_MODE_FLAG_PVSYNC |
+						 DRM_MODE_FLAG_PHSYNC,
+				},
+			},
+		},
+	},
+};
+
+static struct rcar_du_crtc_data alex_du_crtcs[] = {
+	{
+		.exclk = 74250000,
+		.init_conn_type = DRM_MODE_CONNECTOR_HDMIA,
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
+		.vsp = CONFIG_DRM_RCAR_DU0_USE_VSPDU_CH,
+#endif
+	},
+	{
+		.exclk = 74250000,
+		.init_conn_type = DRM_MODE_CONNECTOR_Composite,
+#ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
+		.vsp = CONFIG_DRM_RCAR_DU1_USE_VSPDU_CH,
+#endif
+	},
+};
+
+static int alex_lvds_backlight_on(void)
+{
+	int ret;
+	struct device_node *np;
+	int gpio;
+
+	np = of_find_node_by_path("/gpio@e6055000");
+	if (np) {
+		gpio = of_get_gpio(np, 31);
+		of_node_put(np);
+	} else {
+		pr_warn("Error: Unable to set backlight to ON\n");
+		ret = -ENOTSUPP;
+		goto error2;
+	}
+
+	gpio_request_one(gpio, GPIOF_INIT_HIGH, NULL);
+	if (!gpio_get_value(gpio)) {
+		pr_warn("Error: LVDS backlight is not enable\n");
+		ret = -ENOTSUPP;
+		goto error;
+	}
+
+	return 0;
+ error:
+	gpio_free(gpio);
+ error2:
+	return ret;
+}
+
+static int alex_lvds_backlight_off(void)
+{
+	int ret;
+	struct device_node *np;
+	int gpio;
+
+	np = of_find_node_by_path("/gpio@e6055000");
+	if (np) {
+		gpio = of_get_gpio(np, 31);
+		of_node_put(np);
+	} else {
+		pr_warn("Error: Unable to set backlight to OFF\n");
+		ret = -ENOTSUPP;
+		goto error2;
+	}
+
+	gpio_free(gpio);
+
+	return 0;
+ error2:
+	return ret;
+}
+
+static struct rcar_du_platform_data alex_du_pdata = {
+	.encoders = alex_du_encoders,
+	.num_encoders = ARRAY_SIZE(alex_du_encoders),
+	.crtcs = alex_du_crtcs,
+	.num_crtcs = ARRAY_SIZE(alex_du_crtcs),
+#ifdef CONFIG_DRM_FBDEV_CRTC
+	.fbdev_crtc = 0,
+#endif
+	.backlight_on = alex_lvds_backlight_on,
+	.backlight_off = alex_lvds_backlight_off,
+	.i2c_ch = 1,
+};
+
+static const struct resource du_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfeb00000, 0x40000),
+	DEFINE_RES_MEM_NAMED(0xfeb80000, 0x30a, "cvbs.0"),
+	DEFINE_RES_MEM_NAMED(0xfeb90000, 0x1c, "lvds.0"),
+	DEFINE_RES_IRQ(gic_spi(256)),
+	DEFINE_RES_IRQ(gic_spi(268)),
+};
+
+static void __init alex_add_du_device(void)
+{
+	struct platform_device_info info = {
+		.name = "rcar-du-r8a7794x",
+		.id = -1,
+		.res = du_resources,
+		.num_res = ARRAY_SIZE(du_resources),
+		.data = &alex_du_pdata,
+		.size_data = sizeof(alex_du_pdata),
+		.dma_mask = DMA_BIT_MASK(32),
+	};
+
+	platform_device_register_full(&info);
+}
 
 
 /*
@@ -57,6 +227,10 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "scif4", NULL, "sh-sci.12" },
 	{ "scif5", NULL, "sh-sci.13" },
 	{ "hscif2", NULL, "sh-sci.17" },
+	{ "du0", "du.0", "rcar-du-r8a7794x" },
+	{ "du1", "du.1", "rcar-du-r8a7794x" },
+	{ "lvds0", "lvds.0", "rcar-du-r8a7794x" },
+	{ "dvenc", "cvbs.0", "rcar-du-r8a7794x" },
 };
 
 /*
@@ -73,6 +247,7 @@ static void __init alex_add_standard_devices(void)
 	r8a7794x_add_dt_devices();
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     NULL, NULL);
+	alex_add_du_device();
 }
 
 static const char * const ale6_boards_compat_dt[] __initconst = {
