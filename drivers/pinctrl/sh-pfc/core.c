@@ -1,7 +1,7 @@
 /*
  * SuperH Pin Function Controller support.
  *
- * Copyright (C) 2014 Renesas Electronics Corporation
+ * Copyright (C) 2014 - 2015 Renesas Electronics Corporation
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2009 - 2012 Paul Mundt
  *
@@ -488,6 +488,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7794_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7794X
+	{
+		.compatible = "renesas,pfc-r8a7794x",
+		.data = &r8a7794x_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_SH7372
 	{
 		.compatible = "renesas,pfc-sh7372",
@@ -623,6 +629,9 @@ static const struct platform_device_id sh_pfc_id_table[] = {
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7794
 	{ "pfc-r8a7794", (kernel_ulong_t)&r8a7794_pinmux_info },
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7794X
+	{ "pfc-r8a7794x", (kernel_ulong_t)&r8a7794x_pinmux_info },
 #endif
 #ifdef CONFIG_PINCTRL_PFC_SH7203
 	{ "pfc-sh7203", (kernel_ulong_t)&sh7203_pinmux_info },
