@@ -44,6 +44,13 @@ void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data)
 	rcar_du_write(rgrp->dev, rgrp->mmio_offset + reg, data);
 }
 
+void rcar_du_group_update(struct rcar_du_group *rgrp, u32 reg, u32 data,
+			  u32 mask)
+{
+	rcar_du_write(rgrp->dev, rgrp->mmio_offset + reg,
+		      (rcar_du_group_read(rgrp, reg) & ~mask) | (data & mask));
+}
+
 static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 {
 	u32 defr8 = DEFR8_CODE | DEFR8_DEFE8;
@@ -76,12 +83,24 @@ static void rcar_du_group_setup_defr8(struct rcar_du_group *rgrp)
 
 static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 {
+	u32 defr5 = 0;
+
 	/* Enable extended features */
 	rcar_du_group_write(rgrp, DEFR, DEFR_CODE | DEFR_DEFE);
 	rcar_du_group_write(rgrp, DEFR2, DEFR2_CODE | DEFR2_DEFE2G);
 	rcar_du_group_write(rgrp, DEFR3, DEFR3_CODE | DEFR3_DEFE3);
 	rcar_du_group_write(rgrp, DEFR4, DEFR4_CODE);
-	rcar_du_group_write(rgrp, DEFR5, DEFR5_CODE | DEFR5_DEFE5);
+
+	defr5 = DEFR5_CODE | DEFR5_DEFE5;
+	if (rgrp->index == 0) {
+		if (rgrp->dev->crtcs[0].crtc.connector_type
+					== DRM_MODE_CONNECTOR_Composite)
+			defr5 |= (1 << 18) | (2 << 4);	/* DU0 to DVENC */
+		if (rgrp->dev->crtcs[1].crtc.connector_type
+					== DRM_MODE_CONNECTOR_Composite)
+			defr5 |= (1 << 18) | (2 << 6);	/* DU1 to DVENC */
+	}
+	rcar_du_group_write(rgrp, DEFR5, defr5);
 
 	rcar_du_group_setup_defr8(rgrp);
 

@@ -6,7 +6,9 @@ rcar-du-drm-y := rcar_du_crtc.o \
 		 rcar_du_kms.o \
 		 rcar_du_lvdscon.o \
 		 rcar_du_plane.o \
-		 rcar_du_vgacon.o
+		 rcar_du_vgacon.o \
+		 rcar_du_cvbscon.o \
+		 rcar_du_cvbsenc.o
 
 rcar-du-drm-$(CONFIG_DRM_RCAR_DU_CONNECT_VSP)	+= vspd_drv_main.o \
 						   vspd_dl.o \

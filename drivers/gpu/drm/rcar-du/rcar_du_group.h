@@ -46,6 +46,8 @@ struct rcar_du_group {
 
 u32 rcar_du_group_read(struct rcar_du_group *rgrp, u32 reg);
 void rcar_du_group_write(struct rcar_du_group *rgrp, u32 reg, u32 data);
+void rcar_du_group_update(struct rcar_du_group *rgrp, u32 reg, u32 data,
+			  u32 mask);
 
 int rcar_du_group_get(struct rcar_du_group *rgrp);
 void rcar_du_group_put(struct rcar_du_group *rgrp);

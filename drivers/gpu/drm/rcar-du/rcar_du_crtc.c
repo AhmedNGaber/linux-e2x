@@ -138,6 +138,11 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 		dclksel_bit = ESCR_DCLKSEL_CLKS;
 	}
 
+	if (rcrtc->crtc.connector_type == DRM_MODE_CONNECTOR_Composite) {
+		div = 2;
+		dclksel_bit = ESCR_DCLKSEL_DCLKIN;
+	}
+
 	if (dclksel_bit & ESCR_DCLKSEL_CLKS)
 		dev_dbg(rcrtc->group->dev->dev,
 		      "Internal clock is used in CRTC[%d]. Dot clock:%ldkHz\n",
@@ -156,7 +161,8 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	/* Signal polarities */
 	value = ((mode->flags & DRM_MODE_FLAG_PVSYNC) ? 0 : DSMR_VSL)
 	      | ((mode->flags & DRM_MODE_FLAG_PHSYNC) ? 0 : DSMR_HSL)
-	      | ((mode->flags & DRM_MODE_FLAG_INTERLACE) ? DSMR_ODEV : 0)
+	      | ((mode->flags & DRM_MODE_FLAG_INTERLACE) ? DSMR_ODEV
+								 : 0)
 	      | DSMR_DIPM_DE;
 	rcar_du_crtc_write(rcrtc, DSMR, value | DSMR_CSPM); /* for HDMI */
 
@@ -198,6 +204,68 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 	rcar_du_crtc_write(rcrtc, DESR,  mode->htotal - mode->hsync_start - 1);
 	rcar_du_crtc_write(rcrtc, DEWR,  mode->hdisplay);
+}
+
+static void rcar_du_crtc_set_color_conv_factor(struct rcar_du_crtc *rcrtc)
+{
+	if (rcrtc->crtc.connector_type == DRM_MODE_CONNECTOR_Composite) {
+		/* Set for full scale to ITU-R BT.601 conversion */
+		if (rcrtc->index == 0) {
+			rcar_du_group_update(rcrtc->group,
+				YCLRP, YCLRP_DU0(0x020e), YCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				YCLGP, YCLGP_DU0(0x0408), YCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				YCLBP, YCLBP_DU0(0x00c9), YCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				YCLAP, YCLAP_DU0(0x0010), YCLAP_DU0_MASK);
+
+			rcar_du_group_update(rcrtc->group,
+				CBCLRP, CBCLRP_DU0(0x112f), CBCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CBCLGP, CBCLGP_DU0(0x1254), CBCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CBCLBP, CBCLBP_DU0(0x0383), CBCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+			CBCLAP, CBCLAP_DU0(0x0080), CBCLAP_DU0_MASK);
+
+			rcar_du_group_update(rcrtc->group,
+				CRCLRP, CRCLRP_DU0(0x0383), CRCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CRCLGP, CRCLGP_DU0(0x12f2), CRCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CRCLBP, CRCLBP_DU0(0x1091), CRCLRGBP_DU0_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CRCLAP, CRCLAP_DU0(0x0080), CRCLAP_DU0_MASK);
+		} else {
+			rcar_du_group_update(rcrtc->group,
+				YCLRP, YCLRP_DU1(0x020e), YCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				YCLGP, YCLGP_DU1(0x0408), YCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				YCLBP, YCLBP_DU1(0x00c9), YCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				YCLAP, YCLAP_DU1(0x0010), YCLAP_DU1_MASK);
+
+			rcar_du_group_update(rcrtc->group,
+				CBCLRP, CBCLRP_DU1(0x112f), CBCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CBCLGP, CBCLGP_DU1(0x1254), CBCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CBCLBP, CBCLBP_DU1(0x0383), CBCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CBCLAP, CBCLAP_DU1(0x0080), CBCLAP_DU1_MASK);
+
+			rcar_du_group_update(rcrtc->group,
+				CRCLRP, CRCLRP_DU1(0x0383), CRCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CRCLGP, CRCLGP_DU1(0x12f2), CRCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CRCLBP, CRCLBP_DU1(0x1091), CRCLRGBP_DU1_MASK);
+			rcar_du_group_update(rcrtc->group,
+				CRCLAP, CRCLAP_DU1(0x0080), CRCLAP_DU1_MASK);
+		}
+	}
 }
 
 void rcar_du_crtc_route_output(struct drm_crtc *crtc,
@@ -353,6 +421,8 @@ static void rcar_du_crtc_start(struct rcar_du_crtc *rcrtc)
 	rcrtc->plane->enabled = true;
 	rcar_du_crtc_update_planes(crtc);
 	mutex_unlock(&rcrtc->group->planes.lock);
+
+	rcar_du_crtc_set_color_conv_factor(rcrtc);
 
 	/* Setup planes. */
 	for (i = 0; i < ARRAY_SIZE(rcrtc->group->planes.planes); ++i) {
@@ -871,6 +941,7 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->dpms = DRM_MODE_DPMS_OFF;
 	rcrtc->plane = &rgrp->planes.planes[index % 2];
 	rcrtc->lvds_ch = -1;
+	rcrtc->cvbs_ch = -1;
 
 	if (pdata->init_conn_type)
 		crtc->connector_type = pdata->init_conn_type;
@@ -900,15 +971,6 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 			(rcdu->info->chip == RCAR_M2N) ||
 			(rcdu->info->chip == RCAR_E2)))
 			crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
-	}
-#endif
-#if !defined(CONFIG_DRM_RCAR_CVBS) && \
-	(defined(CONFIG_DRM_ADV7511) || defined(CONFIG_DRM_ADV7511_MODULE)) && \
-	defined(CONFIG_DRM_RCAR_LVDS)
-	if (pdata->init_conn_type) {
-		if ((crtc->connector_type == DRM_MODE_CONNECTOR_Composite) &&
-			(rcdu->info->chip == RCAR_E2X))
-			crtc->connector_type = DRM_MODE_CONNECTOR_LVDS;
 	}
 #endif
 
@@ -964,7 +1026,8 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 
 	if (vsp_ch != RCAR_DU_VSPD_UNUSED) {
 		/* R8A7794 is not supported VSPD1 */
-		if ((rcdu->info->chip == RCAR_E2) &&
+		if (((rcdu->info->chip == RCAR_E2) ||
+			(rcdu->info->chip == RCAR_E2X)) &&
 			((0x01 << vsp_ch) & BIT(1)))
 			vsp_ch = pdata->vsp = RCAR_DU_VSPD_UNUSED;
 		else if ((rcdu->info->chip == RCAR_H2) && (index == DU_CH_2) &&

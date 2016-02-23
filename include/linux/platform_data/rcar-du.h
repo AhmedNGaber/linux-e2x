@@ -23,6 +23,7 @@ enum rcar_du_output {
 	RCAR_DU_OUTPUT_LVDS1,
 	RCAR_DU_OUTPUT_TCON,
 	RCAR_DU_OUTPUT_HDMI,
+	RCAR_DU_OUTPUT_CVBS,
 	RCAR_DU_OUTPUT_MAX,
 };
 
@@ -32,6 +33,7 @@ enum rcar_du_encoder_type {
 	RCAR_DU_ENCODER_VGA,
 	RCAR_DU_ENCODER_LVDS,
 	RCAR_DU_ENCODER_HDMI,
+	RCAR_DU_ENCODER_CVBS,
 };
 
 #ifdef CONFIG_DRM_RCAR_DU_CONNECT_VSP
@@ -64,6 +66,11 @@ struct rcar_du_connector_hdmi_data {
 	/* TODO: Add DDC information for EDID retrieval */
 };
 
+struct rcar_du_connector_cvbs_data {
+	unsigned int tvsys;
+	struct drm_mode_modeinfo modes[2];
+};
+
 /*
  * struct rcar_du_encoder_data - Encoder platform data
  * @type: the encoder type (RCAR_DU_ENCODER_*)
@@ -82,6 +89,7 @@ struct rcar_du_encoder_data {
 		struct rcar_du_connector_lvds_data lvds;
 		struct rcar_du_connector_vga_data vga;
 		struct rcar_du_connector_hdmi_data hdmi;
+		struct rcar_du_connector_cvbs_data cvbs;
 	} connector;
 };
 

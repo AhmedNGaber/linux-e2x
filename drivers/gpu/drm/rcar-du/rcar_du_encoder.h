@@ -20,12 +20,14 @@
 
 struct rcar_du_device;
 struct rcar_du_lvdsenc;
+struct rcar_du_cvbsenc;
 
 struct rcar_du_encoder {
 	struct drm_encoder_slave slave_encoder;
 	struct drm_encoder *encoder;
 	enum rcar_du_output output;
 	struct rcar_du_lvdsenc *lvds;
+	struct rcar_du_cvbsenc *cvbs;
 	struct rcar_du_device *dev;
 };
 
