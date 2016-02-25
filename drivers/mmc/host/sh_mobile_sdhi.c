@@ -504,7 +504,7 @@ static void sh_mobile_sdhi_hw_reset(struct tmio_mmc_host *host)
 
 static int sh_mobile_sdhi_wait_idle(struct tmio_mmc_host *host)
 {
-	int timeout = 1000;
+	int timeout = 4000;
 
 	while (--timeout && !(sd_ctrl_read16(host, CTL_STATUS2) & (1 << 13)))
 		udelay(1);
