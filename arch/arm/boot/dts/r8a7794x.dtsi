@@ -66,6 +66,12 @@
 		interrupts = <1 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
+	pmu {
+		compatible = "arm,cortex-a7-pmu";
+		interrupts = <0 82 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 83 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	gpio0: gpio@e6050000 {
 		compatible = "renesas,gpio-r8a7794x", "renesas,gpio-rcar";
 		reg = <0 0xe6050000 0 0x50>;
