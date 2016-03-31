@@ -180,6 +180,16 @@ static const u16 ravb_offset_rcar_gen2[RAVB_MAX_REGISTER_OFFSET] = {
 	[GCT0] = 0x03B8,
 	[GCT1] = 0x03BC,
 	[GCT2] = 0x03C0,
+	[GIE] = 0x03CC,
+	[GID] = 0x03D0,
+	[RIE0] = 0x0460,
+	[RID0] = 0x0464,
+	[RIE1] = 0x0468,
+	[RID1] = 0x046C,
+	[RIE2] = 0x0470,
+	[RID2] = 0x0474,
+	[TIE] = 0x0478,
+	[TID] = 0x047C,
 
 	[ECMR]	= 0x0500,
 	[ECSR]	= 0x0510,
@@ -727,6 +737,70 @@ static int ravb_mac_init(struct net_device *ndev, bool start)
 	return 0;
 }
 
+static void ravb_set_rie0(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, RIE0) | bit;
+	ravb_write(ndev, val, RIE0);
+}
+
+static void ravb_set_rid0(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, RID0) | bit;
+	ravb_write(ndev, val, RID0);
+}
+
+static void ravb_set_rie1(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, RIE1) | bit;
+	ravb_write(ndev, val, RIE1);
+}
+
+static void ravb_set_rid1(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, RID1) | bit;
+	ravb_write(ndev, val, RID1);
+}
+
+static void ravb_set_rie2(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, RIE2) | bit;
+	ravb_write(ndev, val, RIE2);
+}
+
+static void ravb_set_rid2(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, RID2) | bit;
+	ravb_write(ndev, val, RID2);
+}
+
+static void ravb_set_tie(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, TIE) | bit;
+	ravb_write(ndev, val, TIE);
+}
+
+static void ravb_set_tid(struct net_device *ndev, u32 bit)
+{
+	u32 val;
+
+	val = ravb_read(ndev, TID) | bit;
+	ravb_write(ndev, val, TID);
+}
+
 /* Device init function for Ethernet AVB */
 static int ravb_dmac_init(struct net_device *ndev, bool start)
 {
@@ -743,9 +817,13 @@ static int ravb_dmac_init(struct net_device *ndev, bool start)
 	ravb_ring_format(ndev, RAVB_NC);
 
 	/* all ravb int mask disable*/
+	ravb_set_rid0(ndev, RID0_ALL);
 	ravb_write(ndev, 0, RIC0);
+	ravb_set_rid1(ndev, RID1_ALL);
 	ravb_write(ndev, 0, RIC1);
+	ravb_set_rid2(ndev, RID2_ALL);
 	ravb_write(ndev, 0, RIC2);
+	ravb_set_tid(ndev, TID_ALL);
 	ravb_write(ndev, 0, TIC);
 
 #if defined(__LITTLE_ENDIAN)
@@ -769,12 +847,13 @@ static int ravb_dmac_init(struct net_device *ndev, bool start)
 	/* Interrupt Enable */
 	if (start) {
 		/* Frame Receive */
+		ravb_set_rie0(ndev, RIE0_FRS1 | RIE0_FRS0);
 		ravb_write(ndev, 0x00000003, RIC0);
-		/* Receive FIFO full warning */
-		ravb_write(ndev, 0x80000000, RIC1);
 		/* Receive FIFO full error, Descriptor Empty */
+		ravb_set_rie2(ndev, RIE2_RFFS | RIE2_QFS1 | RIE2_QFS0);
 		ravb_write(ndev, 0x80000003, RIC2);
 		/* Frame Transmited, Timestamp FIFO updated */
+		ravb_set_tie(ndev, TIE_FTS1 | TIE_FTS0);
 		ravb_write(ndev, 0x00000103, TIC);
 	}
 
@@ -1117,8 +1196,10 @@ static irqreturn_t ravb_interrupt(int irq, void *netdev)
 			((tis & tic) & TIS_FTF0)) {
 			if (napi_schedule_prep(&mdp->napi)) {
 				/* Mask Rx and Tx interrupts */
+				ravb_set_rid0(ndev, RID0_FRD0);
 				ravb_write(ndev, ric0 & ~RIC0_FRE0,
 					RIC0);
+				ravb_set_tid(ndev, TID_FTD0);
 				ravb_write(ndev, tic & ~TIC_FTE0,
 					TIC);
 				__napi_schedule(&mdp->napi);
@@ -1185,8 +1266,10 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 	/* Reenable Rx interrupts */
 	spin_lock_irqsave(&mdp->lock, flags);
 	ric0 = ravb_read(ndev, RIC0);
+	ravb_set_rie0(ndev, RIE0_FRS0);
 	ravb_write(ndev, ric0 | RIC0_FRE0, RIC0);
 	tic = ravb_read(ndev, TIC);
+	ravb_set_tie(ndev, TIE_FTS0);
 	ravb_write(ndev, tic | TIC_FTE0, TIC);
 	spin_unlock_irqrestore(&mdp->lock, flags);
 
@@ -1873,9 +1956,13 @@ static int ravb_close(struct net_device *ndev)
 	netif_stop_queue(ndev);
 
 	/* Disable interrupts by clearing the interrupt mask. */
+	ravb_set_rid0(ndev, RID0_ALL);
 	ravb_write(ndev, 0, RIC0);
+	ravb_set_rid1(ndev, RID1_ALL);
 	ravb_write(ndev, 0, RIC1);
+	ravb_set_rid2(ndev, RID2_ALL);
 	ravb_write(ndev, 0, RIC2);
+	ravb_set_tid(ndev, TID_ALL);
 	ravb_write(ndev, 0, TIC);
 
 	/* wait dma stopping */
@@ -2132,6 +2219,7 @@ static struct ravb_plat_data *ravb_parse_dt(struct device *dev,
 static const struct of_device_id ravb_match_table[] = {
 	{ .compatible = "renesas,gether-r8a7790", .data = &r8a779x_data_giga },
 	{ .compatible = "renesas,gether-r8a7794", .data = &r8a779x_data_giga },
+	{ .compatible = "renesas,gether-r8a7794x", .data = &r8a779x_data_giga },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ravb_match_table);
@@ -2392,6 +2480,7 @@ static const struct dev_pm_ops ravb_dev_pm_ops = {
 static struct platform_device_id ravb_id_table[] = {
 	{ "r8a7790-gether", (kernel_ulong_t)&r8a779x_data_giga },
 	{ "r8a7794-gether", (kernel_ulong_t)&r8a779x_data_giga },
+	{ "r8a7794x-gether", (kernel_ulong_t)&r8a779x_data_giga },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, ravb_id_table);
