@@ -39,6 +39,7 @@
 
 	aliases {
 		serial0 = &scif0;
+		ethernet0 = &avb;
 	};
 
 	chosen {
@@ -332,20 +333,20 @@
 
 	renesas,no-ether-link;
 	renesas,phy = <0>;
-	renesas,mii-lite-ignore-pins = <&gpio3 30 0
-				        &gpio3 23 0
-				        &gpio3 22 0
-				        &gpio3 21 0
-				        &gpio3 20 0
-				        &gpio3 19 0
-				        &gpio3 18 0
+	renesas,mii-lite-ignore-pins = <&gpio3 11 0
+				        &gpio4 1 0
+				        &gpio5 23 0
+				        &gpio5 22 0
+				        &gpio4 0 0
+				        &gpio3 29 0
+				        &gpio3 28 0
 				        &gpio3 10 0
 				        &gpio3 9 0
 				        &gpio3 8 0
 				        &gpio3 7 0
 				        &gpio3 6 0>;
-	phy-int-gpio = <&gpio3 28 GPIO_ACTIVE_LOW>;
-	phy-reset-gpio = <&gpio3 27 0>;
+	phy-int-gpio = <&gpio5 16 GPIO_ACTIVE_LOW>;
+	phy-reset-gpio = <&gpio5 15 0>;
 	status = "disabled";
 };
 
