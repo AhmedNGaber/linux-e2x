@@ -27,6 +27,8 @@ obj-$(CONFIG_VIDEO_CODA) 		+= coda.o
 
 obj-$(CONFIG_VIDEO_SH_VEU)		+= sh_veu.o
 
+obj-$(CONFIG_VIDEO_RCAR_VIN)		+= rcar-dvdec.o
+
 obj-$(CONFIG_VIDEO_MEM2MEM_DEINTERLACE)	+= m2m-deinterlace.o
 
 obj-$(CONFIG_VIDEO_S3C_CAMIF) 		+= s3c-camif/
