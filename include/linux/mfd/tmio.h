@@ -98,22 +98,15 @@
 /* Some controllers have UHS-I sampling clock controller */
 #define TMIO_MMC_HAS_UHS_SCC		(1 << 11)
 
+/* Use the internal DMA module */
+#define TMIO_MMC_USE_INTERNAL_DMA	(1 << 12)
+
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);
 void tmio_core_mmc_clk_div(void __iomem *cnf, int shift, int state);
 
 struct dma_chan;
-
-struct tmio_mmc_dma {
-	void *chan_priv_tx;
-	void *chan_priv_rx;
-	int slave_id_tx;
-	int slave_id_rx;
-	int alignment_shift;
-	dma_addr_t dma_rx_offset;
-	bool (*filter)(struct dma_chan *chan, void *arg);
-};
 
 struct tmio_mmc_host;
 
@@ -130,6 +123,8 @@ struct tmio_mmc_data {
 	struct tmio_mmc_dma		*dma;
 	struct device			*dev;
 	unsigned int			cd_gpio;
+	unsigned int			max_blk_count;
+	unsigned short			max_segs;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);
 	int (*write16_hook)(struct tmio_mmc_host *host, int addr);

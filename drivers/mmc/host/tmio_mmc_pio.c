@@ -1,7 +1,7 @@
 /*
  * linux/drivers/mmc/host/tmio_mmc_pio.c
  *
- * Copyright (C) 2014-2015 Renesas Electronics Corporation
+ * Copyright (C) 2014-2016 Renesas Electronics Corporation
  * Copyright (C) 2011 Guennadi Liakhovetski
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
@@ -1355,6 +1355,9 @@ static void tmio_mmc_of_parse(struct platform_device *pdev,
 
 	if (of_get_property(np, "toshiba,mmc-wrprotect-disable", NULL))
 		pdata->flags |= TMIO_MMC_WRPROTECT_DISABLE;
+	if (of_get_property(np, "use-internal-dma", NULL)) {
+		pdata->flags |= TMIO_MMC_USE_INTERNAL_DMA;
+	}
 }
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
@@ -1387,6 +1390,7 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	pdata->dev = &pdev->dev;
 	_host = mmc_priv(mmc);
 	_host->pdata = pdata;
+	_host->dma = pdata->dma;
 	_host->mmc = mmc;
 	_host->pdev = pdev;
 	platform_set_drvdata(pdev, mmc);
@@ -1407,10 +1411,10 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	mmc->ops = &tmio_mmc_ops;
 	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;
-	mmc->max_segs = 32;
+	mmc->max_segs = pdata->max_segs ? pdata->max_segs : 32;
 	mmc->max_blk_size = 512;
-	mmc->max_blk_count = (PAGE_CACHE_SIZE / mmc->max_blk_size) *
-		mmc->max_segs;
+	mmc->max_blk_count = pdata->max_blk_count ? :
+		(PAGE_CACHE_SIZE / mmc->max_blk_size) * mmc->max_segs;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
@@ -1464,6 +1468,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 
 	if (pdata->flags & TMIO_MMC_SDIO_IRQ)
 		tmio_mmc_enable_sdio_irq(mmc, 0);
+
+	if (pdata->flags & TMIO_MMC_USE_INTERNAL_DMA)
+		_host->use_internal_dma = true;
 
 	spin_lock_init(&_host->lock);
 	mutex_init(&_host->ios_lock);

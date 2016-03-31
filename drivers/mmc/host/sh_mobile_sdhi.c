@@ -70,15 +70,6 @@ enum {
 	SH_MOBILE_SDHI_EXT_ACC_MAX, /* EXT_ACC access size max */
 };
 
-/* SD buffer access size for EXT_ACC */
-static unsigned short sh_acc_size[][SH_MOBILE_SDHI_EXT_ACC_MAX] = {
-	/* { 16bit, 32bit, }, */
-	{ 0x0000, 0x0001, },	/* SH_MOBILE_SDHI_VER_490C */
-	{ 0x0001, 0x0000, },	/* SH_MOBILE_SDHI_VER_CB0D */
-	{ 0x0001, 0x0000, },	/* SH_MOBILE_SDHI_VER_CC0D */
-	{ 0x0001, 0x0101, },	/* SH_MOBILE_SDHI_VER_CC10 */
-};
-
 struct sh_mobile_sdhi_scc {
 	unsigned long clk;	/* clock for SDR104 */
 	u32 tap;		/* sampling clock position for SDR104 */
@@ -152,6 +143,9 @@ static int sh_dma_size[][SH_MOBILE_SDHI_DMA_XMIT_SZ_MAX] = {
 	/* { 1byte, 2byte, 4byte, 8byte, 16byte, 32byte, }, */
 	{ -EINVAL, 0x0000, 0x0000, -EINVAL, 0x5000, 0xa000, },	/* VER_490C */
 	{ -EINVAL, 0x0000, 0x0000, -EINVAL, 0x0001, 0x0004, },	/* VER_CB0D */
+	{ -EINVAL, 0x0000, 0x0000, -EINVAL, 0x0001, 0x0004, },	/* VER_CC0D */
+	{ -EINVAL, -EINVAL, -EINVAL,
+		-EINVAL, -EINVAL, -EINVAL, }, /* VER_CC10 */
 };
 
 struct sh_mobile_sdhi_vlt {
@@ -169,6 +163,38 @@ struct sh_mobile_sdhi {
 	unsigned int type;
 	struct sh_mobile_sdhi_vlt vlt;
 };
+
+static void sh_mobile_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
+{
+	u32 val;
+
+	/*
+	 * see also
+	 *	sh_mobile_sdhi_of_data :: dma_buswidth
+	 */
+	switch (sd_ctrl_read16(host, CTL_VERSION)) {
+	case 0x490C:
+		val = (width == 32) ? 0x0001 : 0x0000;
+		break;
+	case 0xCB0D:
+		val = (width == 32) ? 0x0000 : 0x0001;
+		break;
+	case 0xCC10:
+	case 0xCD10:
+		if (width == 64)
+			val = 0x0000;
+		else if (width == 32)
+			val = 0x0101;
+		else	/* width = 16 */
+			val = 0x0001;
+		break;
+	default:
+		/* nothing to do */
+		return;
+	}
+
+	sd_ctrl_write16(host, EXT_ACC, val);
+}
 
 static int sh_mobile_sdhi_clk_enable(struct platform_device *pdev, unsigned int *f)
 {
@@ -579,19 +605,14 @@ static const struct sh_mobile_sdhi_ops sdhi_ops = {
 	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
 };
 
-static void sh_mobile_sdhi_enable_sdbuf_acc32(struct tmio_mmc_host *host,
-								int enable)
+static void sh_mobile_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
-	struct sh_mobile_sdhi *priv = container_of(host->pdata,
-						   struct sh_mobile_sdhi,
-						   mmc_data);
-	unsigned short acc_size;
+	int dma_width = host->dma->sdbuf_64bit ? 64 : 32;
 
-	acc_size = enable ?
-		sh_acc_size[priv->type][SH_MOBILE_SDHI_EXT_ACC_32BIT] :
-		sh_acc_size[priv->type][SH_MOBILE_SDHI_EXT_ACC_16BIT];
-	sd_ctrl_write16(host, EXT_ACC, acc_size);
+	sd_ctrl_write16(host, CTL_DMA_ENABLE, enable ? 2 : 0);
 
+	/* enable 32bit access if DMA mode if possibile */
+	sh_mobile_sdhi_sdbuf_width(host, enable ? dma_width : 16);
 }
 
 static int sh_mobile_sdhi_probe(struct platform_device *pdev)
@@ -725,8 +746,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			dma_priv->chan_priv_rx = (void *)p->dma_slave_rx;
 			dma_priv->slave_id_tx = p->dma_slave_tx;
 			dma_priv->slave_id_rx = p->dma_slave_rx;
-			mmc_data->enable_sdbuf_acc32 =
-				sh_mobile_sdhi_enable_sdbuf_acc32;
 		} else if (p->dma_slave_tx < 0 || p->dma_slave_rx < 0)
 			use_dma = false;
 	}
@@ -739,8 +758,18 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (np) {
+		if (of_property_read_u32(np, "max-blk-count",
+			&mmc_data->max_blk_count))
+			mmc_data->max_blk_count = 0;
+		if (of_property_read_u32(np, "max-segs",
+			(u32 *)(&mmc_data->max_segs)))
+			mmc_data->max_segs = 0;
+	}
+
 	dma_priv->alignment_shift = shift;
 	dma_priv->filter = shdma_chan_filter;
+	dma_priv->enable = sh_mobile_sdhi_enable_dma;
 
 	if (use_dma)
 		mmc_data->dma = dma_priv;
@@ -787,18 +816,23 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto eprobe;
 
+	host->dma = dma_priv;
 	pm_runtime_get_sync(&pdev->dev);
 
 	ver = sd_ctrl_read16(host, CTL_VERSION);
-	if (ver == SDHI_VERSION_CB0D)
+	if (ver == SDHI_VERSION_CB0D) {
 		priv->type = SH_MOBILE_SDHI_VER_CB0D;
-	else if (ver == SDHI_VERSION_490C)
+		dma_priv->sdbuf_64bit = false;
+	} else if (ver == SDHI_VERSION_490C) {
 		priv->type = SH_MOBILE_SDHI_VER_490C;
-	else if (ver == SDHI_VERSION_CC0D)
+		dma_priv->sdbuf_64bit = false;
+	} else if (ver == SDHI_VERSION_CC0D) {
 		priv->type = SH_MOBILE_SDHI_VER_CC0D;
-	else if (ver == SDHI_VERSION_CC10)
+		dma_priv->sdbuf_64bit = false;
+	} else if (ver == SDHI_VERSION_CC10) {
 		priv->type = SH_MOBILE_SDHI_VER_CC10;
-	else {
+		dma_priv->sdbuf_64bit = true;
+	} else {
 		dev_err(host->pdata->dev, "Unknown SDHI version\n");
 		goto eirq;
 	}
@@ -807,21 +841,25 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	 * FIXME:
 	 * this Workaround can be more clever method
 	 */
-	sh_mobile_sdhi_enable_sdbuf_acc32(host, false);
+	sh_mobile_sdhi_enable_dma(host, false);
 
 	/* Some controllers check the ILL_FUNC bit. */
 	if (priv->type == SH_MOBILE_SDHI_VER_490C)
 		mmc_data->flags |= TMIO_MMC_CHECK_ILL_FUNC;
-
-	/* Set DMA xmit size */
-	if (p && p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
-		dma_size = sh_mobile_sdhi_get_xmit_size(priv->type,
+	if ((priv->type == SH_MOBILE_SDHI_VER_CB0D)	||
+	    (priv->type == SH_MOBILE_SDHI_VER_490C)	||
+	    (priv->type == SH_MOBILE_SDHI_VER_CC0D)) {
+		/* Set DMA xmit size */
+		if (p && p->dma_slave_tx > 0 && p->dma_slave_rx > 0) {
+			dma_size = sh_mobile_sdhi_get_xmit_size(priv->type,
 					priv->dma_priv.alignment_shift);
-		if (dma_size < 0) {
-			ret = dma_size;
-			goto eirq;
+			if (dma_size < 0) {
+				ret = dma_size;
+				dev_err(host->pdata->dev, "Invalid dma xmit size\n");
+				goto eirq;
+			}
+			sd_ctrl_write16(host, SD_DMACR(priv->type), dma_size);
 		}
-		sd_ctrl_write16(host, SD_DMACR(priv->type), dma_size);
 	}
 
 	/*
