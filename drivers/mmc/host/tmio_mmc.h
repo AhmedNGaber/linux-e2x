@@ -57,6 +57,18 @@ enum tmio_mmc_power {
 	TMIO_MMC_ON_RUN,	/* card power on, controller running */
 };
 
+struct tmio_mmc_dma {
+	void *chan_priv_tx;
+	void *chan_priv_rx;
+	int slave_id_tx;
+	int slave_id_rx;
+	int alignment_shift;
+	dma_addr_t dma_rx_offset;
+	bool sdbuf_64bit;
+	bool (*filter)(struct dma_chan *chan, void *arg);
+	void (*enable)(struct tmio_mmc_host *host, bool enable);
+};
+
 struct tmio_mmc_host {
 	void __iomem *ctl;
 	struct mmc_command      *cmd;
@@ -79,6 +91,7 @@ struct tmio_mmc_host {
 
 	struct platform_device *pdev;
 	struct tmio_mmc_data *pdata;
+	struct tmio_mmc_dma	*dma;
 
 	/* DMA support */
 	bool			force_pio;
@@ -88,6 +101,7 @@ struct tmio_mmc_host {
 	struct tasklet_struct	dma_issue;
 	struct scatterlist	bounce_sg;
 	u8			*bounce_buf;
+	bool			use_internal_dma;
 
 	/* Track lost interrupts */
 	struct delayed_work	delayed_reset_work;
