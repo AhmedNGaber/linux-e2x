@@ -26,6 +26,7 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/platform_data/camera-rcar.h>
 #include <linux/platform_data/rcar-du.h>
 #include <linux/platform_data/usb-rcar-gen2-phy.h>
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
@@ -41,6 +42,8 @@
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 #include <linux/usb/renesas_usbhs.h>
 #endif
+#include <media/soc_camera.h>
+#include <media/soc_camera_platform.h>
 #include <asm/mach/arch.h>
 #include <sound/rcar_snd.h>
 #include <sound/simple_card.h>
@@ -246,6 +249,7 @@ static const struct clk_name clk_names[] __initconst = {
 	{ "hsusb0", NULL, "usb_phy_rcar_gen2.0" },
 	{ "hsusb1", NULL, "usb_phy_rcar_gen2.1" },
 	{ "vin0", NULL, "r8a7794x-vin.0" },
+	{ "dvdec", NULL, "r8a7794x-dvdec" },
 	{ "vsps", NULL, NULL },
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
@@ -883,6 +887,124 @@ static void alex_restart(char mode, const char *cmd)
 	i2c_smbus_write_byte_data(client, DA9063_REG_CONTROL_F, val);
 }
 
+/* VIN */
+static const struct resource vin_resources[] __initconst = {
+	/* VIN0 */
+	DEFINE_RES_MEM(0xe6ef0000, 0x1000),
+	DEFINE_RES_IRQ(gic_spi(188)),
+};
+
+static void __init alex_add_vin_device(unsigned idx,
+					struct rcar_vin_platform_data *pdata)
+{
+	struct platform_device_info vin_info = {
+		.parent		= &platform_bus,
+		.name		= "r8a7794x-vin",
+		.id		= idx,
+		.res		= &vin_resources[idx * 2],
+		.num_res	= 2,
+		.dma_mask	= DMA_BIT_MASK(32),
+		.data		= pdata,
+		.size_data	= sizeof(*pdata),
+	};
+
+	BUG_ON(idx > 1);
+
+	platform_device_register_full(&vin_info);
+}
+
+static const struct resource dvdec_resources[] __initconst = {
+	DEFINE_RES_MEM(0xfeb81000, 0x2000),
+};
+
+static int alex_cam0_add(struct soc_camera_device *icd);
+static void alex_cam0_del(struct soc_camera_device *icd);
+
+static int camera_set_capture(struct soc_camera_platform_info *info,
+				int enable)
+{
+	return 0; /* camera sensor always enabled */
+}
+
+static struct soc_camera_platform_info camera_info = {
+	.format_name = "UYVY",
+	.format_depth = 20,
+	.format = {
+		.code = V4L2_MBUS_FMT_YUYV10_1X20,
+		.colorspace = V4L2_COLORSPACE_JPEG,
+		.field = V4L2_FIELD_NONE,
+		.width = 720,
+		.height = 480,
+	},
+	.mbus_param = V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_MASTER |
+	V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
+	V4L2_MBUS_DATA_ACTIVE_HIGH,
+	.mbus_type = V4L2_MBUS_PARALLEL,
+	.set_capture = camera_set_capture,
+};
+
+#define ALEX_CAMERA(idx, name, pdata, flag)			\
+static struct rcar_vin_platform_data vin##idx##_pdata = {	\
+	.flags = flag,						\
+};								\
+								\
+static struct soc_camera_link cam##idx##_link = {		\
+	.bus_id = idx,						\
+	.add_device	= alex_cam##idx##_add,			\
+	.del_device	= alex_cam##idx##_del,			\
+	.module_name = name,					\
+	.priv = pdata,						\
+}
+
+ALEX_CAMERA(0, "r8a7794x-dvdec", &camera_info, RCAR_VIN_BT656);
+
+static struct platform_device alex_camera = {
+	.name	= "soc-camera-pdrv",
+	.id	= 0,
+	.dev	= {
+		.platform_data = &cam0_link,
+	},
+};
+
+static void __init alex_add_cam0_device(void)
+{
+	platform_device_register(&alex_camera);
+	alex_add_vin_device(0, &vin0_pdata);
+}
+
+static struct platform_device *cam0_device;
+
+static void alex_cam0_release(struct device *dev)
+{
+	platform_device_put(cam0_device);
+	cam0_device = NULL;
+}
+
+static int alex_cam0_add(struct soc_camera_device *icd)
+{
+	int ret = 0;
+
+	cam0_device = platform_device_alloc("r8a7794x-dvdec", -1);
+	camera_info.icd = icd;
+	cam0_device->num_resources = ARRAY_SIZE(dvdec_resources),
+	cam0_device->resource = (struct resource *)&dvdec_resources;
+	cam0_device->dev.platform_data = &camera_info;
+	cam0_device->dev.release = alex_cam0_release;
+
+	ret = platform_device_add(cam0_device);
+	if (ret < 0) {
+		platform_device_put(cam0_device);
+		cam0_device = NULL;
+	}
+
+	return ret;
+}
+
+static void alex_cam0_del(struct soc_camera_device *icd)
+{
+	platform_device_unregister(cam0_device);
+}
+
 /* VSP1 */
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
@@ -1018,6 +1140,7 @@ static void __init alex_add_standard_devices(void)
 	alex_add_usb0_device();
 #endif
 	alex_add_usb1_device();
+	alex_add_cam0_device();
 #if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1) && \
 !defined(CONFIG_DRM_RCAR_DU_CONNECT_VSP)
 	alex_add_vsp1_devices();
