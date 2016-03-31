@@ -313,6 +313,8 @@ static const struct clk_name clk_enables[] __initconst = {
 }
 
 static const struct sh_dmae_slave_config r8a7794x_sys_dmac_slaves[] = {
+	SYS_DMAC_SLAVE(SDHI0, 256, 0xee100000, 0x60, 0x2060, 0xcd, 0xce),
+	SYS_DMAC_SLAVE(SDHI2, 256, 0xee160000, 0x60, 0x2060, 0xd3, 0xd4),
 	SYS_DMAC_SLAVE(SCIF0, 8, 0xe6e60000, 0xc, 0x14, 0x29, 0x2a),
 	SYS_DMAC_SLAVE(SCIF1, 8, 0xe6e68000, 0xc, 0x14, 0x2d, 0x2e),
 	SYS_DMAC_SLAVE(SCIF2, 8, 0xe6e58000, 0xc, 0x14, 0x2b, 0x2c),
@@ -389,9 +391,9 @@ static void __init alex_add_dmac_prototype(void)
 }
 
 static struct sh_mobile_sdhi_info sdhi0_info = {
-	.dma_slave_tx   = 0,
-	.dma_slave_rx   = 0,
-	.dma_rx_offset  = 0,
+	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI0_TX,
+	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI0_RX,
+	.dma_rx_offset  = 0x2000,
 
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
@@ -399,9 +401,9 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 };
 
 static struct sh_mobile_sdhi_info sdhi2_info = {
-	.dma_slave_tx   = 0,
-	.dma_slave_rx   = 0,
-	.dma_rx_offset  = 0,
+	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI2_TX,
+	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI2_RX,
+	.dma_rx_offset  = 0x2000,
 
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
@@ -409,9 +411,9 @@ static struct sh_mobile_sdhi_info sdhi2_info = {
 };
 
 static struct sh_mobile_sdhi_info mmc_info = {
-	.dma_slave_tx   = 0,
-	.dma_slave_rx   = 0,
-	.dma_rx_offset  = 0,
+	.dma_slave_tx   = SYS_DMAC_SLAVE_SDHI1_TX,
+	.dma_slave_rx   = SYS_DMAC_SLAVE_SDHI1_RX,
+	.dma_rx_offset  = 0x2000,
 
 	.tmio_caps	= MMC_CAP_NONREMOVABLE,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
