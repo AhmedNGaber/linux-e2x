@@ -160,6 +160,10 @@ enum v4l2_colorfx {
  * of controls. Total of 16 controls is reserved for this driver */
 #define V4L2_CID_USER_SI476X_BASE		(V4L2_CID_USER_BASE + 0x1040)
 
+/* The base for the r8a7794x driver controls.
+ * We reserve 16 controls for this driver. */
+#define V4L2_CID_USER_R8A7794X_BASE		(V4L2_CID_USER_BASE + 0x1050)
+
 /* MPEG-class control IDs */
 
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
