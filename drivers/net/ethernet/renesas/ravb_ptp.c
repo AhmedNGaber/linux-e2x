@@ -362,22 +362,6 @@ static int ravb_ptp_settime(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static void ravb_ptp_set_gie(struct net_device *ndev, u32 bit)
-{
-	u32 val;
-
-	val = ravb_read(ndev, GIE) | bit;
-	ravb_write(ndev, val, GIE);
-}
-
-static void ravb_ptp_set_gid(struct net_device *ndev, u32 bit)
-{
-	u32 val;
-
-	val = ravb_read(ndev, GID) | bit;
-	ravb_write(ndev, val, GID);
-}
-
 static int ravb_ptp_perout_enable(struct ptp_clock_info *ptp,
 			  struct ptp_clock_request *rq, int on)
 {
@@ -416,7 +400,6 @@ static int ravb_ptp_perout_enable(struct ptp_clock_info *ptp,
 		ravb_ptp_update_compare(ravb_ptp, (u32)start_ns);
 
 		/* interrupt unmask */
-		ravb_ptp_set_gie(ndev, GIE_PTMS0);
 		mask = ravb_read(ndev, GIC);
 		mask |= GIC_PTME;
 		ravb_write(ndev, mask, GIC);
@@ -428,7 +411,6 @@ static int ravb_ptp_perout_enable(struct ptp_clock_info *ptp,
 		perout->period = 0;
 
 		/* interrupt mask */
-		ravb_ptp_set_gid(ndev, GID_PTMD0);
 		mask = ravb_read(ndev, GIC);
 		mask &= ~GIC_PTME;
 		ravb_write(ndev, mask, GIC);
@@ -465,13 +447,10 @@ static int ravb_ptp_enable(struct ptp_clock_info *ptp,
 
 		spin_lock_irqsave(&ravb_ptp->lock, flags);
 		mask = ravb_read(ndev, GIC);
-		if (on) {
-			ravb_ptp_set_gie(ndev, GIE_PTCS);
+		if (on)
 			mask |= bit;
-		} else {
-			ravb_ptp_set_gid(ndev, GID_PTCD);
+		else
 			mask &= ~bit;
-		}
 		ravb_write(ndev, mask, GIC);
 		spin_unlock_irqrestore(&ravb_ptp->lock, flags);
 		return 0;
@@ -616,7 +595,6 @@ int ravb_ptp_stop(struct net_device *ndev,
 	struct ravb_private *mdp = netdev_priv(ndev);
 	struct ravb_ptp *ravb_ptp = mdp->ptp;
 
-	ravb_ptp_set_gid(ndev, GID_ALL);
 	ravb_write(ndev, 0, GIC);
 	ravb_write(ndev, 0, GIS);
 
