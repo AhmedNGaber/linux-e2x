@@ -12,6 +12,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/mfd/tmio.h>
@@ -54,6 +55,13 @@
 /* DM_CM_INFO2 and DM_CM_INFO2_MASK */
 #define INFO2_DTRANERR1		BIT(17)
 #define INFO2_DTRANERR0		BIT(16)
+
+/* Product register */
+#define PRR			0xFF000044
+#define PRR_PRCUT_MASK		0x00007FFF
+#define PRR_E2X_ES1		0x00005300
+
+void __iomem  *prr;
 
 /*
  * Specification of this driver:
@@ -465,9 +473,12 @@ static void tmio_mmc_tasklet_fn(unsigned long arg)
 		if (!host->data)
 			return;
 
-		if (host->data->flags & MMC_DATA_READ)
+		if (host->data->flags & MMC_DATA_READ) {
 			dir = DMA_FROM_DEVICE;
-		else
+			if ((ioread32(prr) & PRR_PRCUT_MASK) == PRR_E2X_ES1) {
+				mdelay(1);
+			}
+		} else
 			dir = DMA_TO_DEVICE;
 
 		dma_unmap_sg(&host->pdev->dev, host->sg_ptr, host->sg_len, dir);
@@ -572,6 +583,9 @@ void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdat
 				(u8 *)__get_free_page(GFP_KERNEL | GFP_DMA);
 			if (!host->bounce_buf)
 				goto ebouncebuf;
+
+			/* mapping product register */
+			prr = ioremap_nocache(PRR, 0x4);
 
 			tasklet_init(&host->dma_complete,
 				tmio_mmc_tasklet_fn, (unsigned long)host);
