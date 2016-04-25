@@ -39,7 +39,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0>;
-			clock-frequency = <800000000>;
+			clock-frequency = <1000000000>;
 			clocks = <&z2_clk>;
 
 			/* kHz - uV - OPPs unknown yet */
@@ -50,7 +50,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <1>;
-			clock-frequency = <800000000>;
+			clock-frequency = <1000000000>;
 		};
 	};
 
