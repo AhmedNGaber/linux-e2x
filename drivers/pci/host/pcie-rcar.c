@@ -107,6 +107,10 @@
 #define GEN2_PCIEPHYDATA	0x784
 #define GEN2_PCIEPHYCTRL	0x78c
 
+/* R-Car E2X PHY */
+#define E2X_PCIEPHYSR		0x007F0
+#define PHYRDY			(1 << 0)
+
 #define INT_PCI_MSI_NR	32
 
 #define RCONF(x)	(PCICONF(0)+(x))
@@ -490,15 +494,136 @@ static int rcar_pcie_wait_for_dl(struct rcar_pcie *pcie)
 	return -ETIMEDOUT;
 }
 
-static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
+static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
+				    struct of_pci_range *range,
+				    int *index)
+{
+	u64 restype = range->flags;
+	u64 cpu_addr = range->cpu_addr;
+	u64 cpu_end = range->cpu_addr + range->size;
+	u64 pci_addr = range->pci_addr;
+	u32 flags = LAM_64BIT | LAR_ENABLE;
+	u64 mask;
+	u64 size;
+	int idx = *index;
+
+	if (restype & IORESOURCE_PREFETCH)
+		flags |= LAM_PREFETCH;
+
+	/*
+	 * If the size of the range is larger than the alignment of the start
+	 * address, we have to use multiple entries to perform the mapping.
+	 */
+	if (cpu_addr > 0) {
+		unsigned long nr_zeros = __ffs64(cpu_addr);
+		u64 alignment = 1ULL << nr_zeros;
+		size = min(range->size, alignment);
+	} else {
+		size = range->size;
+	}
+	/* Hardware supports max 4GiB inbound region */
+	size = min(size, 1ULL << 32);
+
+	mask = roundup_pow_of_two(size) - 1;
+	mask &= ~0xf;
+
+	while (cpu_addr < cpu_end) {
+		/*
+		 * Set up 64-bit inbound regions as the range parser doesn't
+		 * distinguish between 32 and 64-bit types.
+		 */
+		pci_write_reg(pcie, lower_32_bits(pci_addr), PCIEPRAR(idx));
+		pci_write_reg(pcie, lower_32_bits(cpu_addr), PCIELAR(idx));
+		pci_write_reg(pcie, lower_32_bits(mask) | flags, PCIELAMR(idx));
+
+		pci_write_reg(pcie, upper_32_bits(pci_addr), PCIEPRAR(idx+1));
+		pci_write_reg(pcie, upper_32_bits(cpu_addr), PCIELAR(idx+1));
+		pci_write_reg(pcie, 0, PCIELAMR(idx+1));
+
+		pci_addr += size;
+		cpu_addr += size;
+		idx += 2;
+
+		if (idx > MAX_NR_INBOUND_MAPS) {
+			dev_err(pcie->dev, "Failed to map inbound regions!\n");
+			return -EINVAL;
+		}
+	}
+	*index = idx;
+
+	return 0;
+}
+
+static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
+				     struct device_node *node)
+{
+	const int na = 3, ns = 2;
+	int rlen;
+	parser->node = node;
+	parser->pna = of_n_addr_cells(node);
+	parser->np = parser->pna + na + ns;
+
+	parser->range = of_get_property(node, "dma-ranges", &rlen);
+	if (!parser->range)
+		return -ENOENT;
+
+	parser->end = parser->range + rlen / sizeof(__be32);
+	return 0;
+}
+
+static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
+					  struct device_node *np)
+{
+	struct of_pci_range range;
+	struct of_pci_range_parser parser;
+	int index = 0;
+	int err;
+
+	if (pci_dma_range_parser_init(&parser, np))
+		return -EINVAL;
+
+	/* Get the dma-ranges from DT */
+	for_each_of_pci_range(&parser, &range) {
+		u64 end = range.cpu_addr + range.size - 1;
+		dev_dbg(pcie->dev, "0x%08x 0x%016llx..0x%016llx -> 0x%016llx\n",
+			range.flags, range.cpu_addr, end, range.pci_addr);
+
+		err = rcar_pcie_inbound_ranges(pcie, &range, &index);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static int rcar_pcie_hw_init(struct rcar_pcie *pcie, const char *compatible)
 {
 	int err;
+	unsigned int timeout = 10;
 
 	/* Begin initialization */
 	pci_write_reg(pcie, 0, PCIETCTLR);
 
 	/* Set mode */
 	pci_write_reg(pcie, 1, PCIEMSR);
+
+	/* Check compatible of of_device_id list */
+	if (!strcmp(compatible, "renesas,pcie-r8a7794x")) {
+		/* Set the dma-ranges from DT */
+		err = rcar_pcie_parse_map_dma_ranges(pcie, pcie->dev->of_node);
+		if (err)
+			return err;
+
+		/* Wait for the PHY ready */
+		while (timeout--) {
+			if (pci_read_reg(pcie, E2X_PCIEPHYSR) & PHYRDY)
+				break;
+
+			msleep(5);
+		}
+		if (!(pci_read_reg(pcie, E2X_PCIEPHYSR) & PHYRDY))
+			return -ETIMEDOUT;
+	}
 
 	/*
 	 * Initial header for port config space is type 1, set the device
@@ -561,7 +686,7 @@ static int rcar_pcie_hw_init(struct rcar_pcie *pcie)
 	return 0;
 }
 
-static int rcar_pcie_hw_init_h1(struct rcar_pcie *pcie)
+static int rcar_pcie_hw_init_h1(struct rcar_pcie *pcie, const char *compatible)
 {
 	unsigned int timeout = 10;
 
@@ -585,7 +710,7 @@ static int rcar_pcie_hw_init_h1(struct rcar_pcie *pcie)
 
 	while (timeout--) {
 		if (pci_read_reg(pcie, H1_PCIEPHYSR))
-			return rcar_pcie_hw_init(pcie);
+			return rcar_pcie_hw_init(pcie, compatible);
 
 		msleep(5);
 	}
@@ -593,7 +718,8 @@ static int rcar_pcie_hw_init_h1(struct rcar_pcie *pcie)
 	return -ETIMEDOUT;
 }
 
-static int rcar_pcie_hw_init_gen2(struct rcar_pcie *pcie)
+static int rcar_pcie_hw_init_gen2(struct rcar_pcie *pcie,
+				const char *compatible)
 {
 	pci_write_reg(pcie, 0x000f0030, GEN2_PCIEPHYADDR);
 	pci_write_reg(pcie, 0x00381203, GEN2_PCIEPHYDATA);
@@ -606,7 +732,81 @@ static int rcar_pcie_hw_init_gen2(struct rcar_pcie *pcie)
 	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
 	pci_write_reg(pcie, 0x00000006, GEN2_PCIEPHYCTRL);
 
-	return rcar_pcie_hw_init(pcie);
+	return rcar_pcie_hw_init(pcie, compatible);
+}
+
+#define GEN2_PCIEPHYADDR	0x780
+#define GEN2_PCIEPHYDATA	0x784
+#define GEN2_PCIEPHYCTRL	0x78c
+
+static void rcar_pcie_hw_init_phy(struct rcar_pcie *pcie)
+{
+	pci_write_reg(pcie, 0x00020042, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x0BC34191, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030042, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x0BC34180, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020043, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00210188, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030043, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00210188, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020042, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x0BC34191, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030042, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x0BC34180, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020043, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00210188, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030043, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00210188, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020044, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x01520014, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030044, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x01520014, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x0003004C, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x786174A0, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x0003004D, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x048000BB, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020051, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x079EC062, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020052, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x20000000, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030052, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x20000000, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020056, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00000012, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030056, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00003804, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00020059, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00004900, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030059, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00004900, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030060, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x004B03A5, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030064, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x3F0F1F0F, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
+	pci_write_reg(pcie, 0x00030066, GEN2_PCIEPHYADDR);
+	pci_write_reg(pcie, 0x00008000, GEN2_PCIEPHYDATA);
+	pci_write_reg(pcie, 0x00000001, GEN2_PCIEPHYCTRL);
 }
 
 static int rcar_msi_alloc(struct rcar_msi *chip)
@@ -843,113 +1043,11 @@ fail_clk:
 	return err;
 }
 
-static int rcar_pcie_inbound_ranges(struct rcar_pcie *pcie,
-				    struct of_pci_range *range,
-				    int *index)
-{
-	u64 restype = range->flags;
-	u64 cpu_addr = range->cpu_addr;
-	u64 cpu_end = range->cpu_addr + range->size;
-	u64 pci_addr = range->pci_addr;
-	u32 flags = LAM_64BIT | LAR_ENABLE;
-	u64 mask;
-	u64 size;
-	int idx = *index;
-
-	if (restype & IORESOURCE_PREFETCH)
-		flags |= LAM_PREFETCH;
-
-	/*
-	 * If the size of the range is larger than the alignment of the start
-	 * address, we have to use multiple entries to perform the mapping.
-	 */
-	if (cpu_addr > 0) {
-		unsigned long nr_zeros = __ffs64(cpu_addr);
-		u64 alignment = 1ULL << nr_zeros;
-		size = min(range->size, alignment);
-	} else {
-		size = range->size;
-	}
-	/* Hardware supports max 4GiB inbound region */
-	size = min(size, 1ULL << 32);
-
-	mask = roundup_pow_of_two(size) - 1;
-	mask &= ~0xf;
-
-	while (cpu_addr < cpu_end) {
-		/*
-		 * Set up 64-bit inbound regions as the range parser doesn't
-		 * distinguish between 32 and 64-bit types.
-		 */
-		pci_write_reg(pcie, lower_32_bits(pci_addr), PCIEPRAR(idx));
-		pci_write_reg(pcie, lower_32_bits(cpu_addr), PCIELAR(idx));
-		pci_write_reg(pcie, lower_32_bits(mask) | flags, PCIELAMR(idx));
-
-		pci_write_reg(pcie, upper_32_bits(pci_addr), PCIEPRAR(idx+1));
-		pci_write_reg(pcie, upper_32_bits(cpu_addr), PCIELAR(idx+1));
-		pci_write_reg(pcie, 0, PCIELAMR(idx+1));
-
-		pci_addr += size;
-		cpu_addr += size;
-		idx += 2;
-
-		if (idx > MAX_NR_INBOUND_MAPS) {
-			dev_err(pcie->dev, "Failed to map inbound regions!\n");
-			return -EINVAL;
-		}
-	}
-	*index = idx;
-
-	return 0;
-}
-
-static int pci_dma_range_parser_init(struct of_pci_range_parser *parser,
-				     struct device_node *node)
-{
-	const int na = 3, ns = 2;
-	int rlen;
-
-	parser->node = node;
-	parser->pna = of_n_addr_cells(node);
-	parser->np = parser->pna + na + ns;
-
-	parser->range = of_get_property(node, "dma-ranges", &rlen);
-	if (!parser->range)
-		return -ENOENT;
-
-	parser->end = parser->range + rlen / sizeof(__be32);
-	return 0;
-}
-
-static int rcar_pcie_parse_map_dma_ranges(struct rcar_pcie *pcie,
-					  struct device_node *np)
-{
-	struct of_pci_range range;
-	struct of_pci_range_parser parser;
-	int index = 0;
-	int err;
-
-	if (pci_dma_range_parser_init(&parser, np))
-		return -EINVAL;
-
-	/* Get the dma-ranges from DT */
-	for_each_of_pci_range(&parser, &range) {
-		u64 end = range.cpu_addr + range.size - 1;
-		dev_dbg(pcie->dev, "0x%08x 0x%016llx..0x%016llx -> 0x%016llx\n",
-			range.flags, range.cpu_addr, end, range.pci_addr);
-
-		err = rcar_pcie_inbound_ranges(pcie, &range, &index);
-		if (err)
-			return err;
-	}
-
-	return 0;
-}
-
 static const struct of_device_id rcar_pcie_of_match[] = {
 	{ .compatible = "renesas,pcie-r8a7779", .data = rcar_pcie_hw_init_h1 },
 	{ .compatible = "renesas,pcie-r8a7790", .data = rcar_pcie_hw_init_gen2 },
 	{ .compatible = "renesas,pcie-r8a7791", .data = rcar_pcie_hw_init_gen2 },
+	{ .compatible = "renesas,pcie-r8a7794x", .data = rcar_pcie_hw_init },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rcar_pcie_of_match);
@@ -962,7 +1060,7 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 	struct of_pci_range_parser parser;
 	const struct of_device_id *of_id;
 	int err, win = 0;
-	int (*hw_init_fn)(struct rcar_pcie *);
+	int (*hw_init_fn)(struct rcar_pcie *, const char *);
 
 	pcie = devm_kzalloc(&pdev->dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
@@ -1001,9 +1099,18 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 			break;
 	}
 
-	 err = rcar_pcie_parse_map_dma_ranges(pcie, pdev->dev.of_node);
-	 if (err)
-		return err;
+	of_id = of_match_device(rcar_pcie_of_match, pcie->dev);
+	if (!of_id || !of_id->data)
+		return -EINVAL;
+	hw_init_fn = of_id->data;
+
+	if (!strcmp(of_id->compatible, "renesas,pcie-r8a7794x")) {
+		rcar_pcie_hw_init_phy(pcie);
+	} else {
+		err = rcar_pcie_parse_map_dma_ranges(pcie, pdev->dev.of_node);
+		if (err)
+			return err;
+	}
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rcar_pcie_enable_msi(pcie);
@@ -1015,13 +1122,8 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	of_id = of_match_device(rcar_pcie_of_match, pcie->dev);
-	if (!of_id || !of_id->data)
-		return -EINVAL;
-	hw_init_fn = of_id->data;
-
 	/* Failure to get a link might just be that no cards are inserted */
-	err = hw_init_fn(pcie);
+	err = hw_init_fn(pcie, of_id->compatible);
 	if (err) {
 		dev_info(&pdev->dev, "PCIe link down\n");
 		return 0;
