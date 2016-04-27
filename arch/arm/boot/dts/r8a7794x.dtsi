@@ -471,6 +471,15 @@
 			clock-output-names = "audio_clk_c";
 		};
 
+		/* External PCIe clock - can be overridden by the board */
+		pcie_bus_clk: pcie_bus_clk {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <100000000>;
+			clock-output-names = "pcie_bus";
+			status = "disabled";
+		};
+
 		/* Special CPG clocks */
 		cpg_clocks: cpg_clocks@e6150000 {
 			compatible = "renesas,r8a7794x-cpg-clocks",
@@ -658,17 +667,17 @@
 			compatible = "renesas,r8a7794x-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe615013c 0 4>, <0 0xe6150048 0 4>;
 			clocks = <&sd2_clk>, <&cpg_clocks R8A7794X_CLK_SD1>, <&cpg_clocks R8A7794X_CLK_SD0>,
-				 <&hp_clk>, <&hp_clk>,
+				 <&mp_clk>, <&hp_clk>, <&hp_clk>,
 				 <&rclk_clk>, <&hp_clk>, <&hp_clk>;
 			#clock-cells = <1>;
 			renesas,clock-indices = <
 				R8A7794X_CLK_SDHI2 R8A7794X_CLK_SDHI1 R8A7794X_CLK_SDHI0
-				R8A7794X_CLK_USBDMAC0_1 R8A7794X_CLK_USBDMAC1_1
+				R8A7794X_CLK_PCIEC R8A7794X_CLK_USBDMAC0_1 R8A7794X_CLK_USBDMAC1_1
 				R8A7794X_CLK_CMT1 R8A7794X_CLK_USBDMAC0_0 R8A7794X_CLK_USBDMAC1_0
 			>;
 			clock-output-names =
 				"sdhi2", "sdhi1", "sdhi0",
-				"usbdmac0_1", "usbdmac1_1",
+				"pciec", "usbdmac0_1", "usbdmac1_1",
 				"cmt1", "usbdmac0_0", "usbdmac1_0";
 		};
 		mstp5_clks: mstp5_clks@e6150144 {
@@ -703,15 +712,15 @@
 		mstp8_clks: mstp8_clks@e6150990 {
 			compatible = "renesas,r8a7794x-mstp-clocks", "renesas,cpg-mstp-clocks";
 			reg = <0 0xe6150990 0 4>, <0 0xe61509a0 0 4>;
-			clocks = <&zx_clk>, <&zx_clk>, <&zs_clk>, <&zs_clk>, <&hp_clk>, <&p_clk>;
+			clocks = <&zx_clk>, <&zs_clk>, <&zs_clk>, <&hp_clk>, <&p_clk>;
 			#clock-cells = <1>;
 			renesas,clock-indices = <
-				R8A7794X_CLK_IPMMU_GP R8A7794X_CLK_DVDEC
+				R8A7794X_CLK_IPMMU_GP
 				R8A7794X_CLK_VIN1 R8A7794X_CLK_VIN0 R8A7794X_CLK_AVB
 				R8A7794X_CLK_ETHER
 			>;
 			clock-output-names =
-				"ipmmu_gp", "dvdec", "vin1", "vin0", "avb", "ether";
+				"ipmmu_gp", "vin1", "vin0", "avb", "ether";
 		};
 		mstp9_clks: mstp9_clks@e6150994 {
 			compatible = "renesas,r8a7794x-mstp-clocks", "renesas,cpg-mstp-clocks";
@@ -823,6 +832,30 @@
 		clocks = <&mstp2_clks R8A7794X_CLK_MSIOF2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	pciec: pcie@fe000000 {
+		compatible = "renesas,pcie-r8a7794x";
+		reg = <0 0xfe000000 0 0x80000>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+		bus-range = <0x00 0xff>;
+		device_type = "pci";
+		ranges = <0x01000000 0 0x00000000 0 0xfe100000 0 0x00100000
+			  0x02000000 0 0xfe200000 0 0xfe200000 0 0x00200000
+			  0x02000000 0 0x30000000 0 0x30000000 0 0x08000000
+			  0x42000000 0 0x38000000 0 0x38000000 0 0x08000000>;
+		/* Map all possible DDR as inbound ranges */
+		dma-ranges = <0x42000000 0 0x40000000 0 0x40000000 0 0x40000000>;
+		interrupts = <0 116 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 117 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 118 IRQ_TYPE_LEVEL_HIGH>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0 0 0 0>;
+		interrupt-map = <0 0 0 0 &gic 0 116 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp3_clks R8A7794X_CLK_PCIEC>, <&pcie_bus_clk>;
+		clock-names = "pcie", "pcie_bus";
 		status = "disabled";
 	};
 
