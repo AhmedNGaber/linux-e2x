@@ -451,3 +451,11 @@
 &ssi1 {
 	shared-pin;
 };
+
+&pcie_bus_clk {
+	status = "okay";
+};
+
+&pciec {
+	status = "okay";
+};
