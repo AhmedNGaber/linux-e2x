@@ -62,9 +62,9 @@ static int rcar_du_lvdsenc_init_reg(struct rcar_du_lvdsenc *lvds,
 	rcar_lvds_write(lvds, LCLKSELR, lclkselr);
 
 	lpllsetr = LPLLSETR_LVDSPLL_BP_NORMAL;
-	lpllsetr |= LPLLSETR_LVDSPLL_FD(312);
-	lpllsetr |= LPLLSETR_LVDSPLL_RD(5 - 1);
-	lpllsetr |= LPLLSETR_LVDSPLL_OD(2);
+	lpllsetr |= LPLLSETR_LVDSPLL_FD(811);
+	lpllsetr |= LPLLSETR_LVDSPLL_RD(31 - 1);
+	lpllsetr |= LPLLSETR_LVDSPLL_OD(0);
 	lpllsetr |= LPLLSETR_LVDSPLL_PD;
 	rcar_lvds_write(lvds, LPLLSETR, lpllsetr);
 
