@@ -280,8 +280,8 @@ static const struct clk_name clk_enables[] __initconst = {
 	{ "sys-dmac1", NULL, "sh-dma-engine.2" },
 	{ "sys-dmac0", NULL, "sh-dma-engine.3" },
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
-	{ "usbdmac0", NULL, "sh-dma-engine.4" },
-	{ "usbdmac1", NULL, "sh-dma-engine.5" },
+	{ "usbdmac0_0", NULL, "sh-dma-engine.4" },
+	{ "usbdmac1_0", NULL, "sh-dma-engine.5" },
 #endif
 	{ "ipmmu_gp", NULL, "ipmmu_gp" },
 };
@@ -452,6 +452,27 @@ PDATA_HSCIF(17, 0xe6cd0000, gic_spi(21), 2); /* HSCIF2 */
 
 #define AUXDATA_SCIF(index, baseaddr, irq) SCIF_AD("scif", index, baseaddr)
 #define AUXDATA_HSCIF(index, baseaddr, irq) SCIF_AD("hscif", index, baseaddr)
+
+/* USB2 PHY 0 */
+static const struct resource usb2phy0_resources[] __initconst = {
+	DEFINE_RES_MEM(0xe6590100, 0x100),	/* MEM */
+	DEFINE_RES_MEM(0xee080200, 0x6ff),	/* MEM */
+};
+
+static const struct rcar_gen2_phy_platform_data usb2phy0_pdata __initconst = {
+	.gpio_vbus = -1,
+	.wakeup = false,
+};
+
+static const struct platform_device_info usb2phy0_info __initconst = {
+	.name		= "usb_phy_rcar_gen2",
+	.id		= 0,
+	.res		= usb2phy0_resources,
+	.num_res	= ARRAY_SIZE(usb2phy0_resources),
+	.data		= &usb2phy0_pdata,
+	.size_data	= sizeof(usb2phy0_pdata),
+	.dma_mask	= DMA_BIT_MASK(32),
+};
 
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
 /* USB-DMAC */
@@ -638,11 +659,6 @@ static int usbhs_get_id(struct platform_device *pdev)
 	return USBHS_GADGET;
 }
 
-static int usbhs_get_vbus(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static u32 alex_usbhs_pipe_type[] = {
 	USB_ENDPOINT_XFER_CONTROL,
 	USB_ENDPOINT_XFER_ISOC,
@@ -669,7 +685,7 @@ static struct usbhs_private usbhs_priv __initdata = {
 			.hardware_init	= usbhs_hardware_init,
 			.hardware_exit	= usbhs_hardware_exit,
 			.get_id		= usbhs_get_id,
-			.get_vbus	= usbhs_get_vbus,
+			.get_vbus	= NULL,
 		},
 		.driver_param = {
 			.buswait_bwait	= 9,
@@ -686,7 +702,8 @@ static struct usbhs_private usbhs_priv __initdata = {
 
 static void __init alex_register_usbhs(void)
 {
-	usb_bind_phy("renesas_usbhs", 0, "usb_phy_rcar_gen2");
+	platform_device_register_full(&usb2phy0_info);
+	usb_bind_phy("renesas_usbhs", 0, "usb_phy_rcar_gen2.0");
 	platform_device_register_resndata(&platform_bus,
 					  "renesas_usbhs", -1,
 					  usbhs_resources,
@@ -696,32 +713,6 @@ static void __init alex_register_usbhs(void)
 }
 
 #else
-/* USB2 PHY 0 */
-static const struct resource usb2phy0_resources[] __initconst = {
-	DEFINE_RES_MEM(0xe6590100, 0x100),	/* MEM */
-	DEFINE_RES_MEM(0xee080200, 0x6ff),	/* MEM */
-};
-
-static const struct rcar_gen2_phy_platform_data usb2phy0_pdata __initconst = {
-#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
-	.gpio_vbus = 857,
-	.wakeup = true,
-#else
-	.gpio_vbus = -1,
-	.wakeup = false,
-#endif
-};
-
-static const struct platform_device_info usb2phy0_info __initconst = {
-	.name		= "usb_phy_rcar_gen2",
-	.id		= 0,
-	.res		= usb2phy0_resources,
-	.num_res	= ARRAY_SIZE(usb2phy0_resources),
-	.data		= &usb2phy0_pdata,
-	.size_data	= sizeof(usb2phy0_pdata),
-	.dma_mask	= DMA_BIT_MASK(32),
-};
-
 /* EHCI 0 */
 static const struct resource ehci0_resources[] __initconst = {
 	DEFINE_RES_MEM(0xee080100, 0xff),	/* MEM */
