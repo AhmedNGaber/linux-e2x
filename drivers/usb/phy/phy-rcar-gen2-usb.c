@@ -130,6 +130,7 @@ static void __rcar_gen2_usb_phy_init(struct rcar_gen2_usb_phy_priv *priv)
 	void __iomem *usb2_base = priv->usb2_base;
 	void __iomem *hsusb_base = priv->base;
 	u32 val;
+	struct platform_device *pdev = priv->pdev;
 
 	/* Since ops->init() is called once, this driver enables both clocks */
 	clk_prepare_enable(priv->clk);
@@ -141,13 +142,18 @@ static void __rcar_gen2_usb_phy_init(struct rcar_gen2_usb_phy_priv *priv)
 
 	/* Initialize HSUSB part */
 	val = readl(hsusb_base + USBHS_UGCTRL2_REG);
+	if (pdev->id == 0) {
 #if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
-	val = (val & ~USBHS_UGCTRL2_USB0) |
-	      USBHS_UGCTRL2_USB0_HS;
+		val = (val & ~USBHS_UGCTRL2_USB0) |
+				USBHS_UGCTRL2_USB0_HS;
 #else
-	val = (val & ~USBHS_UGCTRL2_USB0) |
-	      USBHS_UGCTRL2_USB0_HOST;
+		val = (val & ~USBHS_UGCTRL2_USB0) |
+			USBHS_UGCTRL2_USB0_HOST;
 #endif
+	} else {
+		val = (val & ~USBHS_UGCTRL2_USB0) |
+			USBHS_UGCTRL2_USB0_HOST;
+	}
 	writel(val & USBHS_UGCTRL2_MASK, hsusb_base + USBHS_UGCTRL2_REG);
 }
 
@@ -545,7 +551,14 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 #ifdef CONFIG_USB_ALEX
-	{
+	if (pdev->id == 0) {
+#if !IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+		retval = usb_phy_init(&priv->phy);
+
+		if (!retval)
+			retval = usb_phy_set_suspend(&priv->phy, 0);
+#endif
+	} else {
 		retval = usb_phy_init(&priv->phy);
 
 		if (!retval)
