@@ -721,8 +721,21 @@ static int usbhsc_resume(struct device *dev)
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+#ifdef CONFIG_USB_ALEX
+	u16 intenb0 = 0;
+	struct usbhs_mod_info *info = &priv->mod_info;
+#endif
+
+	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL)) {
 		usbhsc_power_ctrl(priv, 1);
+#ifdef CONFIG_USB_ALEX
+		if (info->irq_vbus) {
+			intenb0 = usbhs_read(priv, INTENB0);
+			intenb0 |= VBSE;
+			usbhs_write(priv, INTENB0, intenb0);
+		}
+#endif
+	}
 
 	usbhs_platform_call(priv, phy_reset, pdev);
 

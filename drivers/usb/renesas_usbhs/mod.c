@@ -264,8 +264,30 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	struct usbhs_priv *priv = data;
 	struct usbhs_irq_state irq_state;
 
+#ifdef CONFIG_USB_ALEX
+	u16 lpsts = 0;
+	u16 intenb0 = 0;
+	struct usbhs_mod_info *info = usbhs_priv_to_modinfo(priv);
+#endif
 	if (usbhs_status_get_each_irq(priv, &irq_state) < 0)
 		return IRQ_NONE;
+
+#ifdef CONFIG_USB_ALEX
+	lpsts = usbhs_read(priv, LPSTS);
+	if ((!(lpsts & LPSTS_SUSPM)) && (info->irq_vbus)) {
+		lpsts |= LPSTS_SUSPM;
+		usbhs_write(priv, LPSTS, lpsts);
+
+		intenb0 = usbhs_read(priv, INTENB0);
+		intenb0 &= ~VBSE;
+		usbhs_write(priv, INTENB0, intenb0);
+
+		lpsts &= ~LPSTS_SUSPM;
+		usbhs_write(priv, LPSTS, lpsts);
+
+		return IRQ_NONE;
+	}
+#endif
 
 	/*
 	 * clear interrupt
