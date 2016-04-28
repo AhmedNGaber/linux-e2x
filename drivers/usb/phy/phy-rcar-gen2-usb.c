@@ -52,7 +52,11 @@ struct rcar_gen2_usb_phy_priv {
 #define USBHS_UGCTRL2_REG		0x84
 #define USBHS_UGCTRL2_USB0		(3 << 4)
 #define USBHS_UGCTRL2_USB0_PCI		(1 << 4)
+#ifdef CONFIG_USB_ALEX
+#define USBHS_UGCTRL2_USB0_HS		(2 << 4)
+#else
 #define USBHS_UGCTRL2_USB0_HS		(3 << 4)
+#endif
 #define USBHS_UGCTRL2_USB2_PCI		(0 << 31)
 #define USBHS_UGCTRL2_USB2_SS		(1 << 31)
 #define USBHS_UGCTRL2_USB0_HOST		USBHS_UGCTRL2_USB0_PCI
@@ -137,8 +141,13 @@ static void __rcar_gen2_usb_phy_init(struct rcar_gen2_usb_phy_priv *priv)
 
 	/* Initialize HSUSB part */
 	val = readl(hsusb_base + USBHS_UGCTRL2_REG);
+#if IS_ENABLED(CONFIG_USB_RENESAS_USBHS_UDC)
+	val = (val & ~USBHS_UGCTRL2_USB0) |
+	      USBHS_UGCTRL2_USB0_HS;
+#else
 	val = (val & ~USBHS_UGCTRL2_USB0) |
 	      USBHS_UGCTRL2_USB0_HOST;
+#endif
 	writel(val & USBHS_UGCTRL2_MASK, hsusb_base + USBHS_UGCTRL2_REG);
 }
 
