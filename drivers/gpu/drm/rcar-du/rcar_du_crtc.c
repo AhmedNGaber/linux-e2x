@@ -943,9 +943,15 @@ int rcar_du_crtc_create(struct rcar_du_group *rgrp, unsigned int index)
 	rcrtc->lvds_ch = -1;
 	rcrtc->cvbs_ch = -1;
 
-	if (pdata->init_conn_type)
+	if (pdata->init_conn_type) {
 		crtc->connector_type = pdata->init_conn_type;
-	else
+		if (pdata->init_conn_type == DRM_MODE_CONNECTOR_LVDS)
+			rcdu->info->routes[RCAR_DU_OUTPUT_LVDS0].possible_crtcs
+				= BIT(index);
+		else if (pdata->init_conn_type == DRM_MODE_CONNECTOR_Composite)
+			rcdu->info->routes[RCAR_DU_OUTPUT_CVBS].possible_crtcs
+				= BIT(index);
+	} else
 		crtc->connector_type = DRM_MODE_CONNECTOR_Unknown;
 
 #if !defined(CONFIG_DRM_ADV7511) && !defined(CONFIG_DRM_ADV7511_MODULE)

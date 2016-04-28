@@ -741,12 +741,12 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 			.encoder_type = DRM_MODE_ENCODER_NONE,
 		},
 		[RCAR_DU_OUTPUT_LVDS0] = {
-			.possible_crtcs = BIT(0) | BIT(1),
+			.possible_crtcs = BIT(0),
 			.possible_clones = 0,
 			.encoder_type = DRM_MODE_ENCODER_LVDS,
 		},
 		[RCAR_DU_OUTPUT_CVBS] = {
-			.possible_crtcs = BIT(0) | BIT(1),
+			.possible_crtcs = BIT(1),
 			.possible_clones = 0,
 			.encoder_type = DRM_MODE_ENCODER_TVDAC,
 		},
