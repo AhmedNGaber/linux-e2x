@@ -107,6 +107,7 @@ struct usbhs_priv;
 #define D2FIFOCTR	0x00F2	/* for R-Car Gen2 */
 #define D3FIFOSEL	0x00F4	/* for R-Car Gen2 */
 #define D3FIFOCTR	0x00F6	/* for R-Car Gen2 */
+#define LPSTS		0x0102
 
 /* SYSCFG */
 #define SCKE	(1 << 10)	/* USB Module Clock Enable */
@@ -241,6 +242,9 @@ struct usbhs_priv;
 #define USBSPD_SPEED_LOW	0x1
 #define USBSPD_SPEED_FULL	0x2
 #define USBSPD_SPEED_HIGH	0x3
+
+/* LPSTS */
+#define LPSTS_SUSPM	(1 << 14)	/* SuspendM control */
 
 /*
  *		struct
