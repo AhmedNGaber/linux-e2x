@@ -1,0 +1,453 @@
+/*
+ * Device Tree Source for the Ale4 board
+ *
+ * Copyright (C) 2015-2016 Renesas Electronics Corporation
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/*
+ * SSI-AK4642
+ *
+ * SW1: 1: AK4642
+ *      2: CN22
+ *      3: ADV7511
+ *
+  * This command is required when Playback/Capture
+ *
+ * # Note SRC0 is not supported on ale4 board
+ *	amixer set "LINEOUT Mixer DACL" on
+ *	amixer set "DVC Out" 100%
+ *	amixer set "DVC In" 100%
+ *
+ * You can use Mute
+ *
+ *	amixer set "DVC Out Mute" on
+ *	amixer set "DVC In Mute" on
+ */
+
+/dts-v1/;
+#include "r8a7794x.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+
+/ {
+	model = "Ale4";
+	compatible = "renesas,ale4", "renesas,r8a77946";
+
+	aliases {
+		serial0 = &scif0;
+		ethernet0 = &avb;
+	};
+
+	chosen {
+		bootargs = "console=ttySC0,115200 ignore_loglevel rw root=/dev/nfs ip=dhcp";
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x40000000>;
+	};
+
+	lbsc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		key-1 {
+			gpios = <&gpio5 4 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_1>;
+			label = "SW2-1";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-2 {
+			gpios = <&gpio5 5 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_2>;
+			label = "SW2-2";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-3 {
+			gpios = <&gpio5 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_3>;
+			label = "SW2-3";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-4 {
+			gpios = <&gpio5 7 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_4>;
+			label = "SW2-4";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-a {
+			gpios = <&gpio5 1 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_A>;
+			label = "SW15";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-b {
+			gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_B>;
+			label = "SW16";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+		key-c {
+			gpios = <&gpio5 3 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_C>;
+			label = "SW17";
+			gpio-key,wakeup;
+			debounce-interval = <20>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led6 {
+			gpios = <&gpio4 13 GPIO_ACTIVE_HIGH>;
+		};
+		led7 {
+			gpios = <&gpio4 12 GPIO_ACTIVE_HIGH>;
+		};
+		led8 {
+			gpios = <&gpio5 14 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	vcc_sdhi0: regulator@0 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio4 22 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vccq_sdhi0: regulator@1 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&gpio4 23 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1
+			  1800000 0>;
+	};
+
+	vcc_sdhi2: regulator@2 {
+		compatible = "regulator-fixed";
+
+		regulator-name = "SDHI2 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio4 24 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vccq_sdhi2: regulator@3 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI2 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&gpio4 25 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1
+			  1800000 0>;
+	};
+
+	fixedregulator3v3: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+		enable-active-high;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+
+		simple-audio-card,format = "i2s";
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&ak4642>;
+			system-clock-frequency = <12288000>;
+		};
+	};
+
+	hdmi_transmitter: adv7511 {
+		compatible = "adi,adv7511";
+		gpios = <&gpio2 29 GPIO_ACTIVE_LOW>;
+
+		adi,input-style = <0x02>;
+		adi,input-id = <0x00>;
+		adi,input-color-depth = <0x03>;
+		adi,sync-pulse = <0x03>;
+		adi,bit-justification = <0x01>;
+		adi,up-conversion = <0x00>;
+		adi,timing-generation-sequence = <0x00>;
+		adi,vsync-polarity = <0x02>;
+		adi,hsync-polarity = <0x02>;
+		adi,clock-delay = <0x03>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <20000000>;
+};
+
+&i2c1 {
+	pinctrl-0 = <&i2c1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+	clock-frequency = <400000>;
+
+	ak4642: sound-codec@12 {
+		#sound-dai-cells = <0>;
+		compatible = "asahi-kasei,ak4642";
+		reg = <0x12>;
+	};
+};
+
+&pfc {
+	pinctrl-0 = <&du_pins &usb0_pins &usb1_pins>;
+	pinctrl-names = "default";
+
+	du_pins: du {
+		renesas,groups = "du0_rgb888", "du0_sync", "du0_clk_out";
+		renesas,function = "du";
+	};
+
+	i2c0_pins: i2c0 {
+		renesas,groups = "i2c0_b";
+		renesas,function = "i2c0";
+	};
+
+	i2c1_pins: i2c1 {
+		renesas,groups = "i2c1_a";
+		renesas,function = "i2c1";
+	};
+
+	scif0_pins: serial0 {
+		renesas,groups = "scif0_data_a";
+		renesas,function = "scif0";
+	};
+
+	ether_pins: ether {
+		renesas,groups = "eth_link", "eth_mdio", "eth_rmii";
+		renesas,function = "eth";
+	};
+
+	avb_pins: avb {
+		renesas,groups = "avb_mdio", "avb_gmii", "avb_avtp_capture_b", "avb_avtp_match_b";
+		renesas,function = "avb";
+	};
+
+	qspi0_pins: spi0 {
+		renesas,groups = "qspi0_ctrl", "qspi0_data4";
+		renesas,function = "qspi0";
+	};
+
+	qspi1_pins: spi1 {
+		renesas,groups = "qspi1_ctrl", "qspi1_data4";
+		renesas,function = "qspi1";
+	};
+
+	sdhi0_pins: sd0 {
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl",
+				 "sdhi0_cd", "sdhi0_wp";
+		renesas,function = "sdhi0";
+	};
+
+	sdhi2_pins: sd1 {
+		renesas,groups = "sdhi2_data4", "sdhi2_ctrl",
+				 "sdhi2_cd", "sdhi2_wp";
+		renesas,function = "sdhi2";
+	};
+
+	mmc_pins: mmc {
+		renesas,groups = "mmc_data8", "mmc_ctrl";
+		renesas,function = "mmc";
+	};
+
+	usb0_pins: usb0 {
+		renesas,groups = "usb0";
+		renesas,function = "usb0";
+	};
+
+	usb1_pins: usb1 {
+		renesas,groups = "usb1";
+		renesas,function = "usb1";
+	};
+
+	sound_pins: sound {
+		renesas,groups = "ssi0129_a_ctrl", "ssi0_a_data", "ssi1_a_data",
+		                 "ssi2_a_data", "ssi9_a_data";
+		renesas,function = "ssi";
+	};
+	sound_clk_pins: sound_clk {
+		renesas,groups = "audio_clk_c_a";
+		renesas,function = "audio_clk";
+	};
+
+};
+
+&ether {
+	phy-handle = <&phy1>;
+	renesas,ether-link-active-low;
+	status = "ok";
+
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+		interrupt-parent = <&irqc0>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
+		micrel,led-mode = <1>;
+	};
+};
+
+&avb {
+	pinctrl-0 = <&avb_pins>;
+	pinctrl-names = "default";
+
+	renesas,no-ether-link;
+	renesas,phy = <0>;
+	renesas,mii-lite-ignore-pins = <&gpio3 11 0
+				        &gpio4 1 0
+				        &gpio5 23 0
+				        &gpio5 22 0
+				        &gpio4 0 0
+				        &gpio3 29 0
+				        &gpio3 28 0
+				        &gpio3 10 0
+				        &gpio3 9 0
+				        &gpio3 8 0
+				        &gpio3 7 0
+				        &gpio3 6 0>;
+	phy-int-gpio = <&gpio5 16 GPIO_ACTIVE_LOW>;
+	phy-reset-gpio = <&gpio5 15 0>;
+	status = "disabled";
+};
+
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+
+&qspi0 {
+	pinctrl-0 = <&qspi0_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+
+	flash: flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "spansion,s25fl512s";
+		reg = <0>;
+		spi-max-frequency = <30000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+		m25p,fast-read;
+		spi-cpol;
+		spi-cpha;
+
+		partition@0 {
+			label = "loader";
+			reg = <0x00000000 0x00080000>;
+			read-only;
+		};
+		partition@40000 {
+			label = "user";
+			reg = <0x00080000 0x00580000>;
+			read-only;
+		};
+		partition@440000 {
+			label = "flash";
+			reg = <0x00600000 0x03a00000>;
+		};
+	};
+};
+
+&qspi1 {
+	pinctrl-0 = <&qspi1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&sdhi0 {
+        pinctrl-0 = <&sdhi0_pins>;
+        pinctrl-names = "default";
+
+        vmmc-supply = <&vcc_sdhi0>;
+        vqmmc-supply = <&vccq_sdhi0>;
+        cd-gpios = <&gpio0 11 GPIO_ACTIVE_LOW>;
+        wp-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+        status = "okay";
+};
+
+&sdhi2 {
+        pinctrl-0 = <&sdhi2_pins>;
+        pinctrl-names = "default";
+
+        vmmc-supply = <&vcc_sdhi2>;
+        vqmmc-supply = <&vccq_sdhi2>;
+        cd-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
+        wp-gpios = <&gpio4 21 GPIO_ACTIVE_HIGH>;
+        status = "okay";
+};
+
+&mmc {
+	pinctrl-0 = <&mmc_pins>;
+	pinctrl-names = "default";
+
+	vmmc-supply = <&fixedregulator3v3>;
+	vqmmc-supply = <&fixedregulator3v3>;
+	non-removable;
+	status = "okay";
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins &sound_clk_pins>;
+	pinctrl-names = "default";
+
+	#sound-dai-cells = <0>;
+
+	status = "okay";
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi0 &src1 &dvc0>;
+			capture  = <&ssi1 &src2 &dvc1>;
+		};
+	};
+};
+
+&ssi1 {
+	shared-pin;
+};
