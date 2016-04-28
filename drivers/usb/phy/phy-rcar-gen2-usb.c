@@ -546,7 +546,7 @@ static int rcar_gen2_usb_phy_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_USB_ALEX
 	{
-		int retval = usb_phy_init(&priv->phy);
+		retval = usb_phy_init(&priv->phy);
 
 		if (!retval)
 			retval = usb_phy_set_suspend(&priv->phy, 0);
