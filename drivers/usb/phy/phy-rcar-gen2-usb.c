@@ -427,8 +427,10 @@ static int rcar_gen2_usbhs_set_peripheral(struct usb_otg *otg,
 		dev_dbg(&pdev->dev, "unregistering gadget '%s'\n",
 			otg->gadget->name);
 
+#ifndef CONFIG_USB_ALEX
 		usb_gadget_vbus_disconnect(otg->gadget);
 		otg->phy->state = OTG_STATE_UNDEFINED;
+#endif
 
 		otg->gadget = NULL;
 		return 0;
@@ -437,8 +439,11 @@ static int rcar_gen2_usbhs_set_peripheral(struct usb_otg *otg,
 	otg->gadget = gadget;
 	dev_dbg(&pdev->dev, "registered gadget '%s'\n", gadget->name);
 
+#ifndef CONFIG_USB_ALEX
 	/* initialize connection state */
 	rcar_gen2_usbhs_gpio_wakeup_isr(priv->irq, priv);
+#endif
+
 	return 0;
 }
 
