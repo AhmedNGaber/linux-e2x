@@ -826,17 +826,40 @@ static void __init alex_add_usb1_device(void)
 	platform_device_register_full(&ohci1_info);
 }
 
-/* POWER IC */
-#define DA9063_REG_CONTROL_F	0x13
-#define DA9063_REG_LDO5_CONT	0x2a
+#define MSTPSR4			0xE615004C
+#define SMSTPCR4		0xE6150140
 
-static struct i2c_board_info poweric_i2c[] = {
-	{ I2C_BOARD_INFO("da9063", 0x5A), },
-};
+#define RST_BASE		0xE6160000
+#define RST_WDTRSTCR		0x00000054
+#define RST_CA7BAR		0x00000030
+
+#define RWDT_BASE		0xE6020000
+#define RWDT_RWTCNT		0x00000000
+#define RWDT_RWTCSRA		0x00000004
 
 static void ale4_restart(char mode, const char *cmd)
 {
+	void __iomem *mstpsr4, *smstpcr4, *rst, *rwdt;
 
+	mstpsr4 = ioremap_nocache(MSTPSR4, 0x4);
+	smstpcr4 = ioremap_nocache(SMSTPCR4, 0x4);
+	rst = ioremap_nocache(RST_BASE, 0x100);
+	rwdt = ioremap_nocache(RWDT_BASE, 0x10);
+
+	/* Enable RWDT clock */
+	iowrite32((ioread32(mstpsr4) & ~0x00000004), smstpcr4);
+
+	/* Enable RWDT reset request */
+	iowrite32(0xA55A0000, rst + RST_WDTRSTCR);
+
+	/* Set boot address */
+	iowrite32(0x00e63410, rst + RST_CA7BAR);
+
+	/* Set the wdt counter to overflow just before */
+	iowrite32(0x5a5aFFFF, rwdt + RWDT_RWTCNT);
+
+	/* Start count up of RWDT */
+	iowrite32(0xa5a5a580, rwdt + RWDT_RWTCSRA);
 }
 
 /* VIN */
