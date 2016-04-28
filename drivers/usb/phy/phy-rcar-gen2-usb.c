@@ -160,9 +160,14 @@ static void __rcar_gen2_usb_phy_init(struct rcar_gen2_usb_phy_priv *priv)
 /* Shutdown USB channels */
 static void __rcar_gen2_usb_phy_shutdown(struct rcar_gen2_usb_phy_priv *priv)
 {
+	u32 val;
+
 	__rcar_gen2_usbhs_phy_disable(priv->base);
 	writel(0, priv->usb2_base + USB2_INT_ENABLE_REG);
-	clk_disable_unprepare(priv->clk);
+
+	val = readw(priv->base + USBHS_LPSTS_REG);
+	if (val & USBHS_LPSTS_SUSPM)
+		clk_disable_unprepare(priv->clk);
 }
 #else
 /* Enable USBHS internal phy */
