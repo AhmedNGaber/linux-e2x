@@ -408,7 +408,7 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 found_clock:
 
 	/* see rsnd_adg_ssi_clk_init() */
-	rsnd_mod_bset(adg_mod, SSICKR, 0x00FF0000, adg->ckr);
+	rsnd_mod_bset(adg_mod, SSICKR, 0x80FF0000, adg->ckr);
 	rsnd_mod_write(adg_mod, BRRA,  0x00000002); /* 1/6 */
 	rsnd_mod_write(adg_mod, BRRB,  0x00000002); /* 1/6 */
 
