@@ -32,23 +32,66 @@ struct rsnd_dvc {
 	     ((pos) = (struct rsnd_dvc *)(priv)->dvc + i);	\
 	     i++)
 
-static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
+static void rsnd_dvc_volume_parameter(struct rsnd_dai_stream *io,
+				     struct rsnd_mod *mod)
 {
 	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
 	u32 max = (0x00800000 - 1);
 	u32 vol[RSND_DVC_VOLUME_NUM];
+	int i;
+
+	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
+		vol[i] = max / RSND_DVC_VOLUME_MAX * dvc->volume[i];
+
+	/* Enable Digital Volume */
+	rsnd_mod_write(mod, DVC_VOL0R, vol[0]);
+	rsnd_mod_write(mod, DVC_VOL1R, vol[1]);
+}
+
+static void rsnd_dvc_volume_init(struct rsnd_dai_stream *io,
+				struct rsnd_mod *mod)
+{
+	u32 dvucr = 0x101;
+
+	/* Initialize operation */
+	rsnd_mod_write(mod, DVC_DVUIR, 1);
+
+	/* General Information */
+	rsnd_mod_write(mod, DVC_ADINR, rsnd_get_adinr(mod));
+	rsnd_mod_write(mod, DVC_DVUCR, dvucr);
+
+	/* Digital Volume Function Parameter */
+	rsnd_dvc_volume_parameter(io, mod);
+
+	/* cancel operation */
+	rsnd_mod_write(mod, DVC_DVUIR, 0);
+}
+
+/*
+ * This function controls DVC_DVUER for change volume
+ * at case of processing DVC.
+ */
+static void rsnd_dvc_volume_update(struct rsnd_mod *mod)
+{
+	struct rsnd_dvc *dvc = rsnd_mod_to_dvc(mod);
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	u32 mute = 0;
 	int i;
 
-	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++) {
-		vol[i] = max / RSND_DVC_VOLUME_MAX * dvc->volume[i];
+	for (i = 0; i < RSND_DVC_VOLUME_NUM; i++)
 		mute |= (!!dvc->mute[i]) << i;
-	}
 
-	rsnd_mod_write(mod, DVC_VOL0R, vol[0]);
-	rsnd_mod_write(mod, DVC_VOL1R, vol[1]);
+	/* Disable DVC Register access */
+	rsnd_mod_write(mod, DVC_DVUER, 0);
 
+	/* Zero Cross Mute Function */
 	rsnd_mod_write(mod, DVC_ZCMCR, mute);
+
+	/* Digital Volume Function Parameter */
+	rsnd_dvc_volume_parameter(io, mod);
+
+	/* Enable DVC Register access */
+	rsnd_mod_write(mod, DVC_DVUER, 1);
 }
 
 static int rsnd_dvc_probe_gen2(struct rsnd_mod *mod,
@@ -98,19 +141,7 @@ static int rsnd_dvc_init(struct rsnd_mod *dvc_mod,
 	rsnd_mod_write(dvc_mod, DVC_SWRSR, 0);
 	rsnd_mod_write(dvc_mod, DVC_SWRSR, 1);
 
-	rsnd_mod_write(dvc_mod, DVC_DVUIR, 1);
-
-	rsnd_mod_write(dvc_mod, DVC_ADINR, rsnd_get_adinr(dvc_mod));
-
-	/*  enable Volume / Mute */
-	rsnd_mod_write(dvc_mod, DVC_DVUCR, 0x101);
-
-	/* ch0/ch1 Volume */
-	rsnd_dvc_volume_update(dvc_mod);
-
-	rsnd_mod_write(dvc_mod, DVC_DVUIR, 0);
-
-	rsnd_mod_write(dvc_mod, DVC_DVUER, 1);
+	rsnd_dvc_volume_init(io, dvc_mod);
 
 	ret = rsnd_adg_set_cmd_timsel_gen2(rdai, dvc_mod, io);
 	if (ret)
