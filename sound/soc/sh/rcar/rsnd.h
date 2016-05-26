@@ -451,6 +451,9 @@ struct rsnd_mod *rsnd_src_mod_get(struct rsnd_priv *priv, int id);
 unsigned int rsnd_src_get_rate(struct rsnd_priv *priv,
 			      struct rsnd_dai_stream *io,
 			      int is_in);
+int rsnd_src_ssiu_init(struct rsnd_mod *ssi_mod,
+		      struct rsnd_dai *rdai,
+		      int use_busif);
 int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 			struct rsnd_dai *rdai,
 			int use_busif);

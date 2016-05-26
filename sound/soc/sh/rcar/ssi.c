@@ -358,6 +358,8 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->err_uirq	= 0;
 	ssi->err_oirq	= 0;
 
+	rsnd_src_ssiu_init(mod, rdai, rsnd_ssi_use_busif(mod));
+
 	return 0;
 }
 

@@ -139,9 +139,9 @@ struct rsnd_src {
 /*
  *		Gen1/Gen2 common functions
  */
-int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
-			struct rsnd_dai *rdai,
-			int use_busif)
+int rsnd_src_ssiu_init(struct rsnd_mod *ssi_mod,
+		      struct rsnd_dai *rdai,
+		      int use_busif)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(ssi_mod);
 	int ssi_id = rsnd_mod_id(ssi_mod);
@@ -167,6 +167,8 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 		case 4:
 			shift = 16;
 			break;
+		default:
+			return -EINVAL;
 		}
 
 		if (shift >= 0)
@@ -186,8 +188,17 @@ int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_ADINR,
 			       rsnd_get_adinr(ssi_mod));
 		rsnd_mod_write(ssi_mod, SSI_BUSIF_MODE,  1);
-		rsnd_mod_write(ssi_mod, SSI_CTRL, 0x1);
 	}
+
+	return 0;
+}
+
+int rsnd_src_ssiu_start(struct rsnd_mod *ssi_mod,
+			struct rsnd_dai *rdai,
+			int use_busif)
+{
+	if (use_busif)
+		rsnd_mod_write(ssi_mod, SSI_CTRL, 0x1);
 
 	return 0;
 }
