@@ -229,6 +229,31 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 	dev_dbg(dev, "ssi%d hw started\n", rsnd_mod_id(mod));
 }
 
+static void rsnd_ssi_power_off(struct rsnd_ssi *ssi,
+			      struct rsnd_dai *rdai)
+{
+	struct rsnd_mod *mod = rsnd_mod_get(ssi);
+
+	if (0 == ssi->usrcnt) {
+		if (rsnd_dai_is_clk_master(rdai)) {
+			if (rsnd_ssi_clk_from_parent(ssi)) {
+				if (0 == --(ssi->parent->usrcnt)) {
+					rsnd_ssi_master_clk_stop(ssi->parent);
+					rsnd_mod_hw_stop(&ssi->parent->mod);
+					/* disable WS continue */
+					rsnd_mod_write(&ssi->parent->mod, SSIWSR, 0);
+				}
+			} else {
+				rsnd_ssi_master_clk_stop(ssi);
+			}
+			/* disable WS continue */
+			rsnd_mod_write(mod, SSIWSR, 0);
+		}
+
+		rsnd_mod_hw_stop(mod);
+	}
+}
+
 static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 			     struct rsnd_dai *rdai)
 {
@@ -263,25 +288,6 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 
 	/* clear error status */
 	rsnd_mod_write(mod, SSISR, 0);
-
-	if (0 == ssi->usrcnt) {
-		if (rsnd_dai_is_clk_master(rdai)) {
-			if (rsnd_ssi_clk_from_parent(ssi)) {
-				if (0 == --(ssi->parent->usrcnt)) {
-					rsnd_ssi_master_clk_stop(ssi->parent);
-					rsnd_mod_hw_stop(&ssi->parent->mod);
-					/* disable WS continue */
-					rsnd_mod_write(&ssi->parent->mod, SSIWSR, 0);
-				}
-			} else {
-				rsnd_ssi_master_clk_stop(ssi);
-			}
-			/* disable WS continue */
-			rsnd_mod_write(mod, SSIWSR, 0);
-		}
-
-		rsnd_mod_hw_stop(mod);
-	}
 
 	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(mod));
 }
@@ -369,6 +375,8 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
+
+	rsnd_ssi_power_off(ssi, rdai);
 
 	if (ssi->err > 0)
 		dev_warn(dev, "ssi under/over flow err = %d\n", ssi->err);
