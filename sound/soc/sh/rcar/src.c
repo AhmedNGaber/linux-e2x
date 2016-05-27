@@ -969,35 +969,19 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 	return 0;
 }
 
-/*
- * stop 1st : clear src.start_out
- *  during --> audio dma-pp stop.
- * stop 2nd : clear src.start_in
- */
 static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 			      struct rsnd_dai *rdai)
 {
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	u32 status;
 
 	status = rsnd_mod_read(mod, SRC_CTRL);
 	if (!status)
 		return 0;
 
-	if (rsnd_io_is_play(io)) {
-		/* is playback */
-		rsnd_src_irq_disable(mod, rdai);
-		rsnd_mod_write(mod, SRC_CTRL, 0);
+	rsnd_mod_write(mod, SRC_CTRL, 0);
+	rsnd_src_irq_disable(mod, rdai);
 
-		return rsnd_src_stop(mod, rdai);
-	} else {
-		/* is capture */
-		rsnd_src_irq_disable(mod, rdai);
-		rsnd_mod_write(mod, SRC_CTRL, 0x01);	/* clear start_out */
-		rsnd_mod_write(mod, SRC_CTRL, 0x00);	/* clear start_in */
-
-		return rsnd_src_stop(mod, rdai);
-	}
+	return rsnd_src_stop(mod, rdai);
 }
 
 static int rsnd_src_dma_stop(struct rsnd_mod *mod,
