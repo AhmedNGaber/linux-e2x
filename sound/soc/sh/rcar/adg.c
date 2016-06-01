@@ -360,7 +360,6 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 {
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
-	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct clk *clk;
 	int i;
@@ -406,12 +405,6 @@ int rsnd_adg_ssi_clk_try_start(struct rsnd_mod *mod, unsigned int rate)
 	return -EIO;
 
 found_clock:
-
-	/* see rsnd_adg_ssi_clk_init() */
-	rsnd_mod_bset(adg_mod, SSICKR, 0x80FF0000, adg->ckr);
-	rsnd_mod_write(adg_mod, BRRA,  0x00000002); /* 1/6 */
-	rsnd_mod_write(adg_mod, BRRB,  0x00000002); /* 1/6 */
-
 	/*
 	 * This "mod" = "ssi" here.
 	 * we can get "ssi id" from mod
@@ -436,6 +429,7 @@ void rsnd_adg_clk_set_rate(struct rsnd_mod *mod, unsigned int rate)
 
 static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 {
+	struct rsnd_mod *adg_mod = rsnd_mod_get(adg);
 	struct clk *clk;
 	unsigned long rate;
 	u32 ckr;
@@ -484,6 +478,10 @@ static void rsnd_adg_ssi_clk_init(struct rsnd_priv *priv, struct rsnd_adg *adg)
 	}
 
 	adg->ckr = ckr;
+
+	rsnd_mod_bset(adg_mod, SSICKR, 0x80FF0000, adg->ckr);
+	rsnd_mod_write(adg_mod, BRRA,  0x00000002); /* 1/6 */
+	rsnd_mod_write(adg_mod, BRRB,  0x00000002); /* 1/6 */
 }
 
 int rsnd_adg_probe(struct platform_device *pdev,
