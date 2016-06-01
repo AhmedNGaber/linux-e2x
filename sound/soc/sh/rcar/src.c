@@ -66,6 +66,9 @@ struct rsnd_src {
 #define	SCU_SYS_INTEN1_UF_SRC_O_IE	(1<<16)
 #define	SCU_SYS_INTEN1_OF_SRC_I_IE	(1<<0)
 
+/* SCU_SYSTEM_STATUS0/1 */
+#define OUF_SRC(id)	((1 << (id + 16)) | (1 << id))
+
 /*
  *		image of SRC (Sampling Rate Converter)
  *
@@ -419,12 +422,27 @@ static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, SRC_IFSVR, fsrate);
 }
 
+static int rsnd_src_status_clear(struct rsnd_mod *mod)
+{
+	u32 val = OUF_SRC(rsnd_mod_id(mod));
+
+	/* Clear SCU_SYSTEM_STATUS0/1 */
+	/*  (Writing 1 initializes the bit.) */
+	rsnd_mod_force_write(mod, SCU_SYS_STATUS0, val); /* sync status */
+	rsnd_mod_force_write(mod, SCU_SYS_STATUS1, val); /* async status */
+
+	return 0;
+}
+
 static int rsnd_src_init(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
-	rsnd_mod_hw_start(mod);
+	int ret;
 
-	return 0;
+	rsnd_mod_hw_start(mod);
+	ret = rsnd_src_status_clear(mod);
+
+	return ret;
 }
 
 static int rsnd_src_quit(struct rsnd_mod *mod,
@@ -659,14 +677,9 @@ static void rsnd_src_irq_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 	int is_use_syncsrc = rsnd_src_use_syncsrc(mod);
 	int src_id = rsnd_mod_id(mod);
 
+	rsnd_src_status_clear(mod);
+
 	if (is_use_syncsrc) {
-
-		/* Clear SCU_SYSTEM_STATUS1 */
-		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_force_write(mod, SCU_SYS_STATUS1,
-			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
-					SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id);
-
 		/* Enable SRCx_INT_ENABLE0 */
 		rsnd_mod_bset(mod, SRC_INT_EN0,
 			      SRC_INT_EN0_UF_SRCO_IE | SRC_INT_EN0_OF_SRCI_IE,
@@ -679,12 +692,6 @@ static void rsnd_src_irq_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
 					SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id);
 	} else {
-		/* Clear SCU_SYSTEM_STATUS0 */
-		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_force_write(mod, SCU_SYS_STATUS0,
-			      (SCU_SYS_INTEN0_OF_SRC_O_IE |
-					SCU_SYS_INTEN0_UF_SRC_I_IE) << src_id);
-
 		/* Enable SRCx_INT_ENABLE0 */
 		rsnd_mod_bset(mod, SRC_INT_EN0,
 			      SRC_INT_EN0_OF_SRCO_IE | SRC_INT_EN0_UF_SRCI_IE,
@@ -712,25 +719,13 @@ static void rsnd_src_irq_disable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 		rsnd_mod_bset(mod, SCU_SYS_INT_EN1,
 			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
 				SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id, 0);
-
-		/* Clear SCU_SYSTEM_STATUS1 */
-		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_force_write(mod, SCU_SYS_STATUS1,
-			      (SCU_SYS_INTEN1_UF_SRC_O_IE |
-					SCU_SYS_INTEN1_OF_SRC_I_IE) << src_id);
-
 	} else {
 		/* Disable SCU_SYSTEM_INT_ENABLE0 */
 		rsnd_mod_bset(mod, SCU_SYS_INT_EN0,
 			      (SCU_SYS_INTEN0_OF_SRC_O_IE |
 				SCU_SYS_INTEN0_UF_SRC_I_IE) << src_id, 0);
-
-		/* Clear SCU_SYSTEM_STATUS0 */
-		/*  (Writing 1 initializes the bit.) */
-		rsnd_mod_force_write(mod, SCU_SYS_STATUS0,
-			      (SCU_SYS_INTEN0_OF_SRC_O_IE |
-					SCU_SYS_INTEN0_UF_SRC_I_IE) << src_id);
 	}
+	rsnd_src_status_clear(mod);
 }
 
 static irqreturn_t rsnd_src_interrupt_gen2(int irq, void *data)
