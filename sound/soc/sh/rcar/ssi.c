@@ -106,6 +106,16 @@ static int rsnd_ssi_use_busif(struct rsnd_mod *mod)
 	return use_busif;
 }
 
+static void rsnd_ssi_status_clear(struct rsnd_mod *mod)
+{
+	rsnd_mod_write(mod, SSISR, 0);
+}
+
+static int rsnd_ssi_status_get(struct rsnd_mod *mod)
+{
+	return rsnd_mod_read(mod, SSISR);
+}
+
 static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 				  u32 bit)
 {
@@ -115,7 +125,7 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 	int i;
 
 	for (i = 0; i < 1024; i++) {
-		status = rsnd_mod_read(mod, SSISR);
+		status = rsnd_ssi_status_get(mod);
 		if (status & bit)
 			return;
 
@@ -220,7 +230,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		EN;
 
 	/* clear error status */
-	rsnd_mod_write(mod, SSISR, 0);
+	rsnd_ssi_status_clear(mod);
 
 	rsnd_mod_write(mod, SSICR, cr);
 
@@ -287,7 +297,7 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 	rsnd_ssi_status_check(mod, IDST);
 
 	/* clear error status */
-	rsnd_mod_write(mod, SSISR, 0);
+	rsnd_ssi_status_clear(mod);
 
 	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(mod));
 }
@@ -479,7 +489,7 @@ static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 		ssi->err_oirq++;
 
 	/* clear error status */
-	rsnd_mod_write(mod, SSISR, 0);
+	rsnd_ssi_status_clear(mod);
 }
 
 /*
@@ -495,7 +505,7 @@ static irqreturn_t rsnd_ssi_pio_interrupt(int irq, void *data)
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
-	u32 status = rsnd_mod_read(mod, SSISR);
+	u32 status = rsnd_ssi_status_get(mod);
 	irqreturn_t ret = IRQ_NONE;
 	unsigned long flags;
 	bool elapsed = false;
@@ -639,7 +649,7 @@ static irqreturn_t rsnd_ssi_dma_interrupt(int irq, void *data)
 	if (!rsnd_io_is_working(io))
 		goto rsnd_ssi_dma_interrupt_out;
 
-	status = rsnd_mod_read(mod, SSISR);
+	status = rsnd_ssi_status_get(mod);
 
 	if (io && (status & (UIRQ | OIRQ))) {
 		struct rsnd_dai *rdai = ssi->rdai;
