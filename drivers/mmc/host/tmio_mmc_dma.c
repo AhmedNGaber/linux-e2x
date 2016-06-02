@@ -475,9 +475,8 @@ static void tmio_mmc_tasklet_fn(unsigned long arg)
 
 		if (host->data->flags & MMC_DATA_READ) {
 			dir = DMA_FROM_DEVICE;
-			if ((ioread32(prr) & PRR_PRCUT_MASK) == PRR_E2X_ES1) {
+			if ((ioread32(prr) & PRR_PRCUT_MASK) == PRR_E2X_ES1)
 				mdelay(1);
-			}
 		} else
 			dir = DMA_TO_DEVICE;
 
