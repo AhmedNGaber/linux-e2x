@@ -311,15 +311,12 @@ void rsnd_ssi_access_disable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 	return;
 }
 
-/*
- *	SSI mod common functions
- */
-static int rsnd_ssi_init(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai)
+static int rsnd_ssi_config_init(struct rsnd_mod *mod,
+				struct rsnd_dai_stream *io)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	u32 cr;
 
 	cr = FORCE;
@@ -364,9 +361,24 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	ssi->err_uirq	= 0;
 	ssi->err_oirq	= 0;
 
-	rsnd_src_ssiu_init(mod, rdai, rsnd_ssi_use_busif(mod));
-
 	return 0;
+}
+
+/*
+ *	SSI mod common functions
+ */
+static int rsnd_ssi_init(struct rsnd_mod *mod,
+			 struct rsnd_dai *rdai)
+{
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	int ret;
+
+	ret = rsnd_ssi_config_init(mod, io);
+	if (ret < 0)
+		return ret;
+	ret = rsnd_src_ssiu_init(mod, rdai, rsnd_ssi_use_busif(mod));
+
+	return ret;
 }
 
 static int rsnd_ssi_quit(struct rsnd_mod *mod,
