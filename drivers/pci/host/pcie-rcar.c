@@ -1112,6 +1112,8 @@ static int rcar_pcie_probe(struct platform_device *pdev)
 			return err;
 	}
 
+	usleep_range(100, 200);
+
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		err = rcar_pcie_enable_msi(pcie);
 		if (err < 0) {
