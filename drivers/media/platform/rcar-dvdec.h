@@ -277,7 +277,15 @@ struct dvdec_rect {
 					| (642 << 0))	/* HAFCMIN        */
 
 #define DVDEC_VCDWCR1_INIT		(0 << 15)	/* VCDFREERUN     */
+
+#define DVDEC_VCDWCR1_AUTO		((0 << 15)	/* VCDFREERUN     */\
+					| (0 << 14)	/* NOVCD50	  */\
+					| (0 << 13)	/* NOVCD60	  */\
+					| (0 << 12))	/* VCDDEFAULT	  */
+
 #define DVDEC_VCDWCR1_IMASK		(0x8000)
+
+#define DVDEC_VCDWCR1_AMASK		(0xF800)
 
 #define DVDEC_DCPCR1_INIT		((1 << 15)	/* DCPMODE_Y      */\
 					| (0 << 11)	/* DCPCHECK       */\
