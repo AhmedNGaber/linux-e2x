@@ -341,9 +341,16 @@ static int __rcar_dvdec_status(
 	struct v4l2_subdev *sd, u32 *status, v4l2_std_id *std)
 {
 	struct rcar_dvdec_state *state = to_state(sd);
-	u16 cromasr1 = ioread16(state->base + DVDEC_CROMASR1_REG);
-	u16 vsyncsr  = ioread16(state->base + DVDEC_VSYNCSR_REG);
+	u16 val, cromasr1, vsyncsr;
 
+	/* Set auto detection mode */
+	val = ioread16(state->base + DVDEC_VCDWCR1_REG);
+	val &= ~DVDEC_VCDWCR1_AMASK;
+	val |= DVDEC_VCDWCR1_AUTO;
+	iowrite16(val, state->base + DVDEC_VCDWCR1_REG);
+
+	cromasr1 = ioread16(state->base + DVDEC_CROMASR1_REG);
+	vsyncsr  = ioread16(state->base + DVDEC_VSYNCSR_REG);
 	if (status) {
 		if (vsyncsr & DVDEC_VSYNCSR_NOSIGNAL)
 			*status = V4L2_IN_ST_NO_SIGNAL;
