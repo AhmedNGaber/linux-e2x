@@ -808,20 +808,36 @@ static void xfer_work(struct work_struct *work)
 {
 	struct usbhs_pkt *pkt = container_of(work, struct usbhs_pkt, work);
 	struct usbhs_pipe *pipe = pkt->pipe;
-	struct usbhs_fifo *fifo = usbhs_pipe_to_fifo(pipe);
+	struct usbhs_fifo *fifo;
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct dma_async_tx_descriptor *desc;
-	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
+	struct dma_chan *chan;
 	struct device *dev = usbhs_priv_to_dev(priv);
 	enum dma_transfer_direction dir;
+	unsigned long flags;
 
-	if (pipe->cookie != 0)
+	if (pipe->cookie != 0) {
+		usbhs_lock(priv, flags);
+		fifo = usbhs_pipe_to_fifo(pipe);
+		if (!fifo)
+			goto xfer_work_end;
+
+		chan = usbhsf_dma_chan_get(fifo, pkt);
+		/* To avoid the lock twice by DMA callback, unlock here */
+		usbhs_unlock(priv, flags);
 		if (dma_async_is_tx_complete(chan,
 					     pipe->cookie,
 					     NULL,
 					     NULL) != DMA_SUCCESS)
 			dmaengine_terminate_all(chan);
+	}
 
+	usbhs_lock(priv, flags);
+	fifo = usbhs_pipe_to_fifo(pipe);
+	if (!fifo)
+		goto xfer_work_end;
+
+	chan = usbhsf_dma_chan_get(fifo, pkt);
 	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 
 	desc = dmaengine_prep_slave_single(chan, pkt->dma + pkt->actual,
@@ -829,7 +845,7 @@ static void xfer_work(struct work_struct *work)
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK |
 					DMA_PREP_ACTUAL_COUNT);
 	if (!desc)
-		return;
+		goto xfer_work_end;
 
 	pipe->desc		= desc;
 	desc->callback		= usbhsf_dma_complete;
@@ -838,7 +854,7 @@ static void xfer_work(struct work_struct *work)
 	pipe->cookie = dmaengine_submit(desc);
 	if (pipe->cookie < 0) {
 		dev_err(dev, "Failed to submit dma descriptor\n");
-		return;
+		goto xfer_work_end;
 	}
 
 	dev_dbg(dev, "  %s %d (%d/ %d)\n",
@@ -849,6 +865,9 @@ static void xfer_work(struct work_struct *work)
 	usbhs_pipe_set_trans_count_if_bulk(pipe, pkt->trans);
 	dma_async_issue_pending(chan);
 	usbhs_pipe_enable(pipe);
+
+xfer_work_end:
+	usbhs_unlock(priv, flags);
 }
 
 /*
