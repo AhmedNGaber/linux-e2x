@@ -1242,6 +1242,10 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		case MMC_BUS_WIDTH_4:
 			sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x00e0);
 		break;
+		case MMC_BUS_WIDTH_8:
+			sd_ctrl_write16(host, CTL_SD_MEM_CARD_OPT, 0x20e0);
+		break;
+
 		}
 	}
 
