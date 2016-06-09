@@ -181,6 +181,16 @@
 		enable-active-high;
 	};
 
+	fixedregulator1v8: fixedregulator@1 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 25 GPIO_ACTIVE_LOW>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	sound {
 		compatible = "simple-audio-card";
 
@@ -427,7 +437,8 @@
 	pinctrl-names = "default";
 
 	vmmc-supply = <&fixedregulator3v3>;
-	vqmmc-supply = <&fixedregulator3v3>;
+	vqmmc-supply = <&fixedregulator1v8>;
+	bus-width = <8>;
 	non-removable;
 	status = "okay";
 };

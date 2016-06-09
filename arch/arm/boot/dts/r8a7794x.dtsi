@@ -423,6 +423,7 @@
 		interrupts = <0 166 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7794X_CLK_SDHI1>;
 		cap-mmc-highspeed;
+		mmc-hs200-1_8v;
 		dma-xmit-sz = <32>;
 		max-blk-count = <0xffffffff>;
 		max-segs = <1>;
