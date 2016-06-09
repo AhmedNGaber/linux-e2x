@@ -797,6 +797,8 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		mmc_data->capabilities |= MMC_CAP_UHS_SDR50;
 	if (of_find_property(np, "cap-uhs-sdr104", NULL))
 		mmc_data->capabilities |= MMC_CAP_UHS_SDR104;
+	if (of_find_property(np, "mmc-hs200-1_8v", NULL))
+		mmc_data->capabilities2 |= MMC_CAP2_HS200_1_8V_SDR;
 
 	if (mmc_data->capabilities & MMC_CAP_UHS_SDR104) {
 		mmc_data->capabilities |= MMC_CAP_CMD23 |
