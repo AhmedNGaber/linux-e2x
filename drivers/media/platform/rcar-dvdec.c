@@ -94,14 +94,14 @@ const struct reg_color rcar_dvdec_reg_color[8] = {
 };
 
 const struct dvdec_rect rcar_dvdec_rect[8] = {
-	{ 17, 258, 0, 1427},	/* 0 : DVDEC_NTSC358 */
-	{ 20, 308, 0, 1411},	/* 1 : DVDEC_NTSC443 */
-	{ 21, 309, 0, 1411},	/* 2 : DVDEC_PAL443 */
-	{ 18, 259, 0, 1427},	/* 3 : DVDEC_PALM */
-	{ 21, 309, 0, 1411},	/* 4 : DVDEC_PALN */
-	{ 18, 306, 0, 1411},	/* 5 : DVDEC_SECAM */
-	{ 17, 258, 0, 1427},	/* 6 : NTSC-443 60 */
-	{ 18, 259, 0, 1427},	/* 7 : PAL 60 */
+	{ 16, 241, 0, 1428},	/* 0 : DVDEC_NTSC358 */
+	{ 16, 241, 0, 1428},	/* 1 : DVDEC_NTSC443 */
+	{ 19, 288, 0, 1412},	/* 2 : DVDEC_PAL443 */
+	{ 16, 241, 0, 1428},	/* 3 : DVDEC_PALM */
+	{ 19, 288, 0, 1412},	/* 4 : DVDEC_PALN */
+	{ 19, 288, 0, 1412},	/* 5 : DVDEC_SECAM */
+	{ 16, 241, 0, 1428},	/* 6 : NTSC-443 60 */
+	{ 16, 241, 0, 1428},	/* 7 : PAL 60 */
 };
 
 struct rcar_dvdec_state {
