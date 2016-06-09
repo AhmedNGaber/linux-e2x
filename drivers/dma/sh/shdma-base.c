@@ -52,22 +52,26 @@ module_param(slave_num, uint, 0444);
 static unsigned long *shdma_slave_used;
 
 /* Called under spin_lock_irqsave(&schan->chan_lock",...) */
-static void shdma_chan_xfer_ld_queue(struct shdma_chan *schan)
+static bool shdma_chan_xfer_ld_queue(struct shdma_chan *schan)
 {
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
 	struct shdma_desc *sdesc;
+	bool ret = false;
 
 	/* DMA work check */
 	if (ops->channel_busy(schan))
-		return;
+		return ret;
 
 	/* Find the first not transferred descriptor */
 	list_for_each_entry(sdesc, &schan->ld_queue, node)
 		if (sdesc->mark == DESC_SUBMITTED) {
 			ops->start_xfer(schan, sdesc);
+			ret = true;
 			break;
 		}
+
+	return ret;
 }
 
 static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
@@ -868,6 +872,7 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 		to_shdma_dev(schan->dma_chan.device)->ops;
 	struct shdma_desc *sdesc;
 	unsigned long flags;
+	bool next_queued;
 
 	spin_lock_irqsave(&schan->chan_lock, flags);
 	list_for_each_entry(sdesc, &schan->ld_queue, node) {
@@ -880,10 +885,17 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 		}
 	}
 	/* Next desc */
-	shdma_chan_xfer_ld_queue(schan);
+	next_queued = shdma_chan_xfer_ld_queue(schan);
 	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 	shdma_chan_ld_cleanup(schan, false);
+
+	if (!next_queued) {
+		spin_lock_irqsave(&schan->chan_lock, flags);
+		/* Next desc */
+		shdma_chan_xfer_ld_queue(schan);
+		spin_unlock_irqrestore(&schan->chan_lock, flags);
+	}
 
 	return IRQ_HANDLED;
 }
