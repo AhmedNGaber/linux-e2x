@@ -115,6 +115,7 @@ struct rcar_dvdec_state {
 	u32			in_cfmt;
 	const struct rcar_dvdec_color_format	*cfmt;
 	void __iomem *base;
+	u16			vsyncsr;
 };
 
 #define to_rcar_dvdec_sd(_ctrl) (&container_of(_ctrl->handler,		\
@@ -220,10 +221,13 @@ static v4l2_std_id rcar_dvdec_to_v4l2_std(struct v4l2_subdev *sd,
 	u16 cromasr1, u16 vsyncsr)
 {
 	struct platform_device *pdev = v4l2_get_subdevdata(sd);
+	struct rcar_dvdec_state *state = to_state(sd);
 	v4l2_std_id std;
 
 	/* SECAM or UNDETECTABLE */
 	std = V4L2_STD_UNKNOWN;
+
+	state->vsyncsr = (vsyncsr & DVDEC_VSYNCSR_FVMODE_MASK);
 
 	switch (cromasr1 & DVDEC_CROMASR1_COLORSYS_MASK) {
 	case DVDEC_CROMASR1_COLORSYS_NTSC:
@@ -236,8 +240,16 @@ static v4l2_std_id rcar_dvdec_to_v4l2_std(struct v4l2_subdev *sd,
 
 		case DVDEC_CROMASR1_FSCMODE_443:
 			/* NTSC-4.43 */
-			dev_info(&pdev->dev, "Detected NTSC 443\n");
 			std = V4L2_STD_NTSC_443;
+			switch	(vsyncsr & DVDEC_VSYNCSR_FVMODE_MASK) {
+			case DVDEC_VSYNCSR_FVMODE_50:
+				dev_info(&pdev->dev, "Detected PAL443 50Hz\n");
+				break;
+
+			case DVDEC_VSYNCSR_FVMODE_60:
+				dev_info(&pdev->dev, "Detected PAL443 60Hz\n");
+				break;
+			}
 			break;
 		}
 		break;
@@ -311,12 +323,17 @@ static u16 v4l2_std_to_rcar_dvdec(v4l2_std_id std)
  *
  * Convert V4l2 video standard id to private id
  */
-static u32 v4l2_std_to_rcar_dvdec_id(v4l2_std_id std)
+static u32 v4l2_std_to_rcar_dvdec_id(
+	struct rcar_dvdec_state *state, v4l2_std_id std)
 {
 	if (std == V4L2_STD_NTSC)
 		return DVDEC_NTSC358;
-	if (std == V4L2_STD_NTSC_443)
-		return DVDEC_NTSC443;
+	if (std == V4L2_STD_NTSC_443) {
+		if (state->vsyncsr == DVDEC_VSYNCSR_FVMODE_50)
+			return DVDEC_NTSC443;
+		else
+			return DVDEC_NTSC60;
+	}
 	if (std == V4L2_STD_PAL)
 		return DVDEC_PAL443;
 	if (std == V4L2_STD_PAL_M)
@@ -359,7 +376,7 @@ static int __rcar_dvdec_status(
 	}
 	if (std) {
 		*std = rcar_dvdec_to_v4l2_std(sd, cromasr1, vsyncsr);
-		state->in_cfmt = v4l2_std_to_rcar_dvdec_id(*std);
+		state->in_cfmt = v4l2_std_to_rcar_dvdec_id(state, *std);
 		rcar_dvdec_initcolor(sd, state->in_cfmt);
 	}
 
