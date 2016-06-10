@@ -109,6 +109,20 @@ struct usbhs_priv;
 #define D3FIFOCTR	0x00F6	/* for R-Car Gen2 */
 #define LPSTS		0x0102
 
+#ifdef CONFIG_USB_ALEX
+#define CFIFO_WA				0x0016
+/* Product Registers */
+#define PRR_ADDRESS				0xFF000044
+#define PRR_CUT_MASK			0x000000FF
+#define PRR_CUT_ES10			0x00000000
+#define PRR_CUT_ES20			0x00000010
+#define PRR_CUT_ES30			0x00000020
+/* size of register */
+#define REG_SIZE				0x04
+#define HS_USB_CH0_BASE_ADDR	0xE6590000
+#define HS_USB_CH1_BASE_ADDR	0xE6598000
+#endif
+
 /* SYSCFG */
 #define SCKE	(1 << 10)	/* USB Module Clock Enable */
 #define HSE	(1 << 7)	/* High-Speed Operation Enable */

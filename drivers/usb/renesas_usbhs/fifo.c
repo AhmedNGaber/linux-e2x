@@ -535,6 +535,39 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	total_len	= len;
 	is_short	= total_len < maxp;
 
+#ifdef CONFIG_USB_ALEX
+	if (fifo->port == CFIFO_WA) {
+		/*
+		 * FIXME
+		 *
+		 * 16-bit access only
+		 */
+		if (len >= 2 && !((unsigned long)buf & 0x01)) {
+			iowrite16_rep(addr, buf, len / 2);
+			len %= 2;
+			buf += total_len - len;
+		}
+
+		/* the rest operation */
+		for (i = 0; i < len; i++)
+			iowrite8(buf[i], addr + (0x01 - (i & 0x01)));
+	} else {
+		/*
+		 * FIXME
+		 *
+		 * 32-bit access only
+		 */
+		if (len >= 4 && !((unsigned long)buf & 0x03)) {
+			iowrite32_rep(addr, buf, len / 4);
+			len %= 4;
+			buf += total_len - len;
+		}
+
+		/* the rest operation */
+		for (i = 0; i < len; i++)
+			iowrite8(buf[i], addr + (0x03 - (i & 0x03)));
+	}
+#else
 	/*
 	 * FIXME
 	 *
@@ -549,6 +582,7 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	/* the rest operation */
 	for (i = 0; i < len; i++)
 		iowrite8(buf[i], addr + (0x03 - (i & 0x03)));
+#endif
 
 	/*
 	 * variable update
@@ -701,6 +735,47 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 		goto usbhs_fifo_read_end;
 	}
 
+#ifdef CONFIG_USB_ALEX
+	if (fifo->port == CFIFO_WA) {
+		/*
+		 * FIXME
+		 *
+		 * 16-bit access only
+		 */
+		if (len >= 2 && !((unsigned long)buf & 0x01)) {
+			ioread16_rep(addr, buf, len / 2);
+			len %= 2;
+			buf += total_len - len;
+		}
+
+		/* the rest operation */
+		for (i = 0; i < len; i++) {
+			if (!(i & 0x01))
+				data = ioread16(addr);
+
+			buf[i] = (data >> ((i & 0x01) * 8)) & 0xff;
+		}
+	} else {
+		/*
+		 * FIXME
+		 *
+		 * 32-bit access only
+		 */
+		if (len >= 4 && !((unsigned long)buf & 0x03)) {
+			ioread32_rep(addr, buf, len / 4);
+			len %= 4;
+			buf += total_len - len;
+		}
+
+		/* the rest operation */
+		for (i = 0; i < len; i++) {
+			if (!(i & 0x03))
+				data = ioread32(addr);
+
+			buf[i] = (data >> ((i & 0x03) * 8)) & 0xff;
+		}
+	}
+#else
 	/*
 	 * FIXME
 	 *
@@ -719,6 +794,7 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 
 		buf[i] = (data >> ((i & 0x03) * 8)) & 0xff;
 	}
+#endif
 
 usbhs_fifo_read_end:
 	dev_dbg(dev, "  recv %d (%d/ %d/ %d/ %d)\n",
@@ -1421,10 +1497,34 @@ int usbhs_fifo_probe(struct usbhs_priv *priv)
 {
 	struct usbhs_fifo *fifo;
 
+#ifdef CONFIG_USB_ALEX
+	u32					cut;
+	void __iomem		*prr;
+	struct resource		*res;
+#endif
+
 	/* CFIFO */
 	fifo = usbhsf_get_cfifo(priv);
 	fifo->name	= "CFIFO";
+
+#ifdef CONFIG_USB_ALEX
+
+	prr = ioremap_nocache(PRR_ADDRESS, REG_SIZE);
+
+	cut = ioread32(prr) & PRR_CUT_MASK;
+	iounmap(prr);
+
+	/* platform data */
+	res = platform_get_resource(priv->pdev, IORESOURCE_MEM, 0);
+
+	if ((cut == PRR_CUT_ES10) && (res->start == HS_USB_CH1_BASE_ADDR))
+		fifo->port	= CFIFO_WA;
+	else
+		fifo->port	= CFIFO;
+#else
 	fifo->port	= CFIFO;
+#endif
+
 	fifo->sel	= CFIFOSEL;
 	fifo->ctr	= CFIFOCTR;
 
