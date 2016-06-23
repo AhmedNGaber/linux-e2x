@@ -281,6 +281,12 @@
 		renesas,function = "qspi1";
 	};
 
+	msiof2_pins: spi4 {
+		renesas,groups = "msiof2_clk_a", "msiof2_sync_a", "msiof2_rx_a",
+			"msiof2_tx_a";
+		renesas,function = "msiof2";
+	};
+
 	sdhi0_pins: sd0 {
 		renesas,groups = "sdhi0_data4", "sdhi0_ctrl",
 				 "sdhi0_cd", "sdhi0_wp";
@@ -401,6 +407,13 @@
 
 &qspi1 {
 	pinctrl-0 = <&qspi1_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&msiof2 {
+	pinctrl-0 = <&msiof2_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";
