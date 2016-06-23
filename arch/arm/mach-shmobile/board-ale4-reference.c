@@ -105,11 +105,11 @@ static struct rcar_du_encoder_data alex_du_encoders[] = {
 					.clock = 13500,
 					.hdisplay = 720,
 					.hsync_start = 732,
-					.hsync_end = 796,
+					.hsync_end = 792,
 					.htotal = 864,
 					.vdisplay = 576,
 					.vsync_start = 581,
-					.vsync_end = 586,
+					.vsync_end = 593,
 					.vtotal = 625,
 					.flags = DRM_MODE_FLAG_INTERLACE |
 						 DRM_MODE_FLAG_PVSYNC |
