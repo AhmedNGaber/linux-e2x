@@ -729,7 +729,7 @@ static const struct rcar_du_device_info rcar_du_r8a7794_info = {
 #ifdef R8A7790_ES1_DU_LVDS_LANE_MISCONNECTION_WORKAROUND
 static struct rcar_du_device_info rcar_du_r8a7794x_info = {
 #else
-static const struct rcar_du_device_info rcar_du_r8a7794_info = {
+static const struct rcar_du_device_info rcar_du_r8a7794x_info = {
 #endif
 	.features = RCAR_DU_FEATURE_CRTC_IRQ_CLOCK | RCAR_DU_FEATURE_DEFR8 |
 		    RCAR_DU_FEATURE_VSP1_SOURCE,
