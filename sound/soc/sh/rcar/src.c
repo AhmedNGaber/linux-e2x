@@ -950,14 +950,14 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 	if (!rsnd_io_has_cmd(io))
 		rsnd_src_status_clear(mod);
 
+	rsnd_src_irq_enable(mod, rdai);
+
 	if (rsnd_src_use_syncsrc(mod))
 		val = 0x11;
 	else
 		val = rsnd_io_has_cmd(io) ? 0x01 : 0x11;
 
 	rsnd_mod_write(mod, SRC_CTRL, val);
-
-	rsnd_src_irq_enable(mod, rdai);
 
 	return 0;
 }
