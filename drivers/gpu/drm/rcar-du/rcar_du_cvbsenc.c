@@ -297,6 +297,9 @@ int rcar_du_cvbsenc_start(struct rcar_du_cvbsenc *cvbs,
 	/* Set DAC output pin */
 	rcar_cvbs_write(cvbs, DENCOUT2, DENCOUT2_HDPD0_VDAC);
 
+	/* Initial state(not output): set to 0x3FF */
+	rcar_cvbs_write(cvbs, DENCO20, DENCO20_YSEL_INIT);
+
 	/* Set operating mode */
 	rcar_du_cvbsenc_set_operating_mode(cvbs);
 
@@ -339,8 +342,6 @@ int rcar_du_cvbsenc_stop_suspend(struct rcar_du_cvbsenc *cvbs)
 		return -1;
 
 	/* Stop output to DAC */
-	rcar_cvbs_write(cvbs, DENCO20, DENCO20_YSEL_INIT);
-
 	clk_disable_unprepare(cvbs->clock);
 
 	if (cvbs->dev->info->cvbs_crtc) {
