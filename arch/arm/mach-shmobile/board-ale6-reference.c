@@ -996,7 +996,8 @@ static int alex_cam0_add(struct soc_camera_device *icd)
 			platform_device_put(cam0_device);
 			cam0_device = NULL;
 		}
-	}
+	} else
+		ret = -ENOMEM;
 
 	return ret;
 }
