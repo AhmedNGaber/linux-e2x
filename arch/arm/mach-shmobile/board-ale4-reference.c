@@ -961,16 +961,26 @@ static int alex_cam0_add(struct soc_camera_device *icd)
 	int ret = 0;
 
 	cam0_device = platform_device_alloc("r8a7794x-dvdec", -1);
-	camera_info.icd = icd;
-	cam0_device->num_resources = ARRAY_SIZE(dvdec_resources),
-	cam0_device->resource = (struct resource *)&dvdec_resources;
-	cam0_device->dev.platform_data = &camera_info;
-	cam0_device->dev.release = alex_cam0_release;
+	if (cam0_device) {
+		camera_info.icd = icd;
+		cam0_device->num_resources = ARRAY_SIZE(dvdec_resources);
+		cam0_device->dev.release = alex_cam0_release;
 
-	ret = platform_device_add(cam0_device);
-	if (ret < 0) {
-		platform_device_put(cam0_device);
-		cam0_device = NULL;
+		ret = platform_device_add_resources(cam0_device,
+			(struct resource *)&dvdec_resources,
+			ARRAY_SIZE(dvdec_resources));
+
+		if (ret == 0)
+			ret = platform_device_add_data(cam0_device,
+				&camera_info, sizeof(camera_info));
+
+		if (ret == 0)
+			ret = platform_device_add(cam0_device);
+
+		if (ret < 0) {
+			platform_device_put(cam0_device);
+			cam0_device = NULL;
+		}
 	}
 
 	return ret;
