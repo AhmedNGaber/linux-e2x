@@ -203,11 +203,9 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 
 		if (rsnd_dai_is_clk_master(rdai)) {
 			/* enable WS continue */
-			if (rsnd_dai_is_clk_master(rdai)) {
-				status = rsnd_mod_read(mod, SSIWSR);
-				if (!(status & CONT))
-					rsnd_mod_write(mod, SSIWSR, CONT);
-			}
+			status = rsnd_mod_read(mod, SSIWSR);
+			if (!(status & CONT))
+				rsnd_mod_write(mod, SSIWSR, CONT);
 
 			if (rsnd_ssi_clk_from_parent(ssi))
 				rsnd_ssi_hw_start(ssi->parent, rdai, io);
