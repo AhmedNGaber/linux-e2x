@@ -304,12 +304,7 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi,
 static int __rsnd_ssi_start(struct rsnd_mod *mod,
 			   struct rsnd_dai_stream *io)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
 	u32 value;
-
-	if (ssi_parent)
-		__rsnd_ssi_start(&(ssi_parent)->mod, io);
 
 	value = rsnd_mod_read(mod, SSICR);
 	if (value & EN)
@@ -324,12 +319,6 @@ static int __rsnd_ssi_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	u32 cr;
-	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
-
-	if (ssi_parent) {
-		if (ssi_parent->usrcnt == 1)
-			rsnd_mod_bset(&(ssi_parent)->mod, SSICR, EN, 0);
-	}
 
 	/*
 	 * disable all IRQ,
