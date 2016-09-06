@@ -70,8 +70,10 @@ u32 rsnd_read(struct rsnd_priv *priv,
 
 	regmap_fields_read(gen->regs[reg], rsnd_mod_id(mod), &val);
 
-	dev_dbg(dev, "r %s[%d] - %4d : %08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, val);
+	if (!in_irq()) {
+		dev_dbg(dev, "r %s[%d] - %4d : %08x\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod), reg, val);
+	}
 
 	return val;
 }
@@ -88,8 +90,10 @@ void rsnd_write(struct rsnd_priv *priv,
 
 	regmap_fields_write(gen->regs[reg], rsnd_mod_id(mod), data);
 
-	dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
+	if (!in_irq()) {
+		dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
+	}
 }
 
 void rsnd_force_write(struct rsnd_priv *priv,
@@ -104,8 +108,10 @@ void rsnd_force_write(struct rsnd_priv *priv,
 
 	regmap_fields_force_write(gen->regs[reg], rsnd_mod_id(mod), data);
 
-	dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
+	if (!in_irq()) {
+		dev_dbg(dev, "w %s[%d] - %4d : %08x\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data);
+	}
 }
 
 void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
@@ -120,8 +126,10 @@ void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
 	regmap_fields_update_bits(gen->regs[reg], rsnd_mod_id(mod),
 				  mask, data);
 
-	dev_dbg(dev, "b %s[%d] - %4d : %08x/%08x\n",
-		rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data, mask);
+	if (!in_irq()) {
+		dev_dbg(dev, "b %s[%d] - %4d : %08x/%08x\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod), reg, data, mask);
+	}
 }
 
 #define rsnd_gen_regmap_init(priv, id_size, reg_id, name, conf)		\
