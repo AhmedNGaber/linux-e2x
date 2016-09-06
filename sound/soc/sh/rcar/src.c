@@ -226,7 +226,7 @@ int rsnd_src_enable_ssi_irq(struct rsnd_mod *ssi_mod,
 
 	/* enable PIO interrupt if Gen2 */
 	if (rsnd_is_gen2(priv))
-		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0f000000);
+		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0d000000);
 
 	return 0;
 }
@@ -239,7 +239,7 @@ int rsnd_src_enable_dma_ssi_irq(struct rsnd_mod *ssi_mod,
 
 	/* enable SSI interrupt if Gen2 */
 	if (rsnd_is_gen2(priv))
-		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0e000000);
+		rsnd_mod_write(ssi_mod, INT_ENABLE, 0x0c000000);
 
 	return 0;
 }
