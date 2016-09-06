@@ -364,7 +364,9 @@ static int rsnd_src_set_convert_rate(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SRC_SWRSR, 1);
 
 	if (rsnd_src_convert_rate(mod) || rsnd_src_use_syncsrc(mod))
-		rsnd_mod_bset(mod, SRC_ROUTE_MODE0, 1, 1);
+		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 1);
+	else
+		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0);
 
 	/*
 	 * Initialize the operation of the SRC internal circuits
@@ -459,15 +461,6 @@ static int rsnd_src_quit(struct rsnd_mod *mod,
 		dev_warn(dev, "src of_srci err = %d\n", src->err_of_srci);
 	if (src->err_uf_srci > 0)
 		dev_warn(dev, "src uf_srci err = %d\n", src->err_uf_srci);
-
-	return 0;
-}
-
-static int rsnd_src_stop(struct rsnd_mod *mod,
-			 struct rsnd_dai *rdai)
-{
-	if (rsnd_src_convert_rate(mod) || rsnd_src_use_syncsrc(mod))
-		rsnd_mod_write(mod, SRC_ROUTE_MODE0, 0);
 
 	return 0;
 }
@@ -651,7 +644,7 @@ static int rsnd_src_stop_gen1(struct rsnd_mod *mod,
 
 	rsnd_mod_bset(mod, SRC_ROUTE_CTRL, (1 << id), 0);
 
-	return rsnd_src_stop(mod, rdai);
+	return 0;
 }
 
 static struct rsnd_mod_ops rsnd_src_gen1_ops = {
@@ -974,7 +967,7 @@ static int rsnd_src_stop_gen2(struct rsnd_mod *mod,
 	rsnd_mod_write(mod, SRC_CTRL, 0);
 	rsnd_src_irq_disable(mod, rdai);
 
-	return rsnd_src_stop(mod, rdai);
+	return 0;
 }
 
 static int rsnd_src_dma_stop(struct rsnd_mod *mod,
