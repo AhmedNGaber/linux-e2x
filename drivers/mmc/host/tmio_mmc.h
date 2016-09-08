@@ -108,6 +108,7 @@ struct tmio_mmc_host {
 	struct scatterlist	bounce_sg;
 	u8			*bounce_buf;
 	bool			use_internal_dma;
+	void __iomem		*prr;
 
 	/* Track lost interrupts */
 	struct delayed_work	delayed_reset_work;

@@ -61,8 +61,6 @@
 #define PRR_PRCUT_MASK		0x00007FFF
 #define PRR_E2X_ES1		0x00005300
 
-void __iomem  *prr;
-
 /*
  * Specification of this driver:
  * - host->chan_{rx,tx} will be used as a flag of enabling/disabling the dma
@@ -475,7 +473,8 @@ static void tmio_mmc_tasklet_fn(unsigned long arg)
 
 		if (host->data->flags & MMC_DATA_READ) {
 			dir = DMA_FROM_DEVICE;
-			if ((ioread32(prr) & PRR_PRCUT_MASK) == PRR_E2X_ES1)
+			if ((ioread32(host->prr) & PRR_PRCUT_MASK)
+				== PRR_E2X_ES1)
 				mdelay(1);
 		} else
 			dir = DMA_TO_DEVICE;
@@ -511,6 +510,9 @@ void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdat
 		/* Each value is set to non-zero to
 			assume "enabling" each DMA */
 		host->chan_rx = host->chan_tx = (void *)0xdeadbeaf;
+
+		/* mapping product register */
+		host->prr = ioremap_nocache(PRR, 0x4);
 
 		tasklet_init(&host->dma_complete, tmio_mmc_tasklet_fn,
 			     (unsigned long)host);
@@ -583,9 +585,6 @@ void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdat
 			if (!host->bounce_buf)
 				goto ebouncebuf;
 
-			/* mapping product register */
-			prr = ioremap_nocache(PRR, 0x4);
-
 			tasklet_init(&host->dma_complete,
 				tmio_mmc_tasklet_fn, (unsigned long)host);
 			tasklet_init(&host->dma_issue,
@@ -609,6 +608,8 @@ ecfgtx:
 void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 {
 	if (host->use_internal_dma) {
+		iounmap(host->prr);
+
 		/* Each value is set to zero to assume "disabling" each DMA */
 		host->chan_rx = host->chan_tx = NULL;
 	} else {
@@ -626,8 +627,6 @@ void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 			free_pages((unsigned long)host->bounce_buf, 0);
 			host->bounce_buf = NULL;
 		}
-
-		iounmap(prr);
 
 		tasklet_kill(&host->dma_complete);
 		tasklet_kill(&host->dma_issue);
