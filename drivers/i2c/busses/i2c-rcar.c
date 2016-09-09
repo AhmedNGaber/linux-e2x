@@ -650,6 +650,7 @@ out:
 	if (ret < 0 && ret != -ENXIO)
 		dev_err(dev, "error %d : %x\n", ret, priv->flags);
 
+	rcar_i2c_init(priv);
 	return ret;
 }
 
