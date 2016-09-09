@@ -364,15 +364,6 @@ static int rcar_i2c_recv(struct rcar_i2c_priv *priv)
 
 static int rcar_i2c_send(struct rcar_i2c_priv *priv)
 {
-	int ret;
-
-	/*
-	 * It should check bus status when send case
-	 */
-	ret = rcar_i2c_bus_barrier(priv);
-	if (ret < 0)
-		return ret;
-
 	rcar_i2c_set_addr(priv, 0);
 	rcar_i2c_start(priv);
 	rcar_i2c_irq_mask(priv, RCAR_IRQ_OPEN_FOR_SEND);
@@ -595,6 +586,10 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	spin_unlock_irqrestore(&priv->lock, flags);
 	/*-------------- spin unlock -----------------*/
 
+	ret = rcar_i2c_bus_barrier(priv);
+	if (ret < 0)
+		goto out;
+
 	ret = -EINVAL;
 	for (i = 0; i < num; i++) {
 		/*-------------- spin lock -----------------*/
@@ -651,7 +646,7 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 		ret = i + 1; /* The number of transfer */
 	}
-
+out:
 	if (ret < 0 && ret != -ENXIO)
 		dev_err(dev, "error %d : %x\n", ret, priv->flags);
 
