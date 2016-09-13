@@ -30,6 +30,7 @@ enum shdma_desc_status {
 	DESC_IDLE,
 	DESC_PREPARED,
 	DESC_SUBMITTED,
+	DESC_QUEUED,
 	DESC_COMPLETED,	/* completed, have to call callback */
 	DESC_WAITING,	/* callback called, waiting for ack / re-submit */
 };
@@ -52,22 +53,31 @@ module_param(slave_num, uint, 0444);
 static unsigned long *shdma_slave_used;
 
 /* Called under spin_lock_irqsave(&schan->chan_lock",...) */
-static void shdma_chan_xfer_ld_queue(struct shdma_chan *schan)
+static bool shdma_chan_xfer_ld_queue(struct shdma_chan *schan)
 {
 	struct shdma_dev *sdev = to_shdma_dev(schan->dma_chan.device);
 	const struct shdma_ops *ops = sdev->ops;
 	struct shdma_desc *sdesc;
+	bool ret = false;
 
 	/* DMA work check */
 	if (ops->channel_busy(schan))
-		return;
+		return true;
 
 	/* Find the first not transferred descriptor */
-	list_for_each_entry(sdesc, &schan->ld_queue, node)
-		if (sdesc->mark == DESC_SUBMITTED) {
+	list_for_each_entry(sdesc, &schan->ld_queue, node) {
+		if (sdesc->mark == DESC_QUEUED) {
+			ret = true;
+			break;
+		} else if (sdesc->mark == DESC_SUBMITTED) {
 			ops->start_xfer(schan, sdesc);
+			sdesc->mark = DESC_QUEUED;
+			ret = true;
 			break;
 		}
+	}
+
+	return ret;
 }
 
 static dma_cookie_t shdma_tx_submit(struct dma_async_tx_descriptor *tx)
@@ -303,6 +313,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 
 		BUG_ON(tx->cookie > 0 && tx->cookie != desc->cookie);
 		BUG_ON(desc->mark != DESC_SUBMITTED &&
+		       desc->mark != DESC_QUEUED &&
 		       desc->mark != DESC_COMPLETED &&
 		       desc->mark != DESC_WAITING);
 
@@ -311,7 +322,9 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 		 * completed descriptors, and to (2) update descriptor flags of
 		 * any chunks in a (partially) completed chain
 		 */
-		if (!all && desc->mark == DESC_SUBMITTED &&
+		if (!all &&
+		    (desc->mark == DESC_SUBMITTED ||
+		    desc->mark == DESC_QUEUED) &&
 		    desc->cookie != cookie)
 			break;
 
@@ -868,10 +881,11 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 		to_shdma_dev(schan->dma_chan.device)->ops;
 	struct shdma_desc *sdesc;
 	unsigned long flags;
+	bool next_queued;
 
 	spin_lock_irqsave(&schan->chan_lock, flags);
 	list_for_each_entry(sdesc, &schan->ld_queue, node) {
-		if (sdesc->mark == DESC_SUBMITTED &&
+		if (sdesc->mark == DESC_QUEUED &&
 		    ops->desc_completed(schan, sdesc)) {
 			dev_dbg(schan->dev, "done #%d@%p\n",
 				sdesc->async_tx.cookie, &sdesc->async_tx);
@@ -880,10 +894,17 @@ static irqreturn_t chan_irqt(int irq, void *dev)
 		}
 	}
 	/* Next desc */
-	shdma_chan_xfer_ld_queue(schan);
+	next_queued = shdma_chan_xfer_ld_queue(schan);
 	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
 	shdma_chan_ld_cleanup(schan, false);
+
+	if (!next_queued) {
+		spin_lock_irqsave(&schan->chan_lock, flags);
+		/* Next desc */
+		shdma_chan_xfer_ld_queue(schan);
+		spin_unlock_irqrestore(&schan->chan_lock, flags);
+	}
 
 	return IRQ_HANDLED;
 }
