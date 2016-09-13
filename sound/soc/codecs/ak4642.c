@@ -145,11 +145,28 @@
 /* MD_CTL4 */
 #define DACH		(1 << 0)
 
+#define AK4642_RETRY	5
+
 /* module params */
 static unsigned int popup_wait = 300;
 module_param(popup_wait, uint, 0644);
 static unsigned int popdown_wait = 300;
 module_param(popdown_wait, uint, 0644);
+
+#define ak4642_err_retry(func)			\
+({						\
+__label__ retry;				\
+	int ret;				\
+	int count = 0;				\
+retry:						\
+	ret = func;				\
+	if (ret < 0) {				\
+		count++;			\
+		if (count <= AK4642_RETRY)	\
+			goto retry;		\
+	}					\
+	ret;					\
+})
 
 /*
  * Playback Volume (table 39)
@@ -180,6 +197,7 @@ static int ak4642_lout_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = container_of(w->dapm,
 					struct snd_soc_codec, dapm);
+	int ret = 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:	/* before widget power up */
@@ -187,15 +205,20 @@ static int ak4642_lout_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:	/* after widget power up */
 		/* Power save mode OFF */
 		mdelay(popup_wait);
-		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			SG_SL2, LOPS, 0));
 		break;
 	case SND_SOC_DAPM_PRE_PMD:	/* before widget power down */
 		/* Power save mode ON */
-		snd_soc_update_bits(codec, SG_SL2, LOPS, LOPS);
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			SG_SL2, LOPS, LOPS));
 		break;
 	case SND_SOC_DAPM_POST_PMD:	/* after widget power down */
 		break;
 	}
+
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -204,10 +227,12 @@ static int ak4642_dac_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
+	int ret = 0;
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:	/* before widget power up */
-		snd_soc_update_bits(codec, SG_SL2, LOPS, LOPS);
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			SG_SL2, LOPS, LOPS));
 		break;
 	case SND_SOC_DAPM_POST_PMU:	/* after widget power up */
 		break;
@@ -215,9 +240,13 @@ static int ak4642_dac_event(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:	/* after widget power down */
 		mdelay(popdown_wait);
-		snd_soc_update_bits(codec, SG_SL2, LOPS, 0);
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			SG_SL2, LOPS, 0));
 		break;
 	}
+
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -301,6 +330,7 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	u8 pll;
+	int ret;
 
 	switch (freq) {
 	case 11289600:
@@ -324,7 +354,11 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	default:
 		return -EINVAL;
 	}
-	snd_soc_update_bits(codec, MD_CTL1, PLL_MASK, pll);
+	ret = ak4642_err_retry(snd_soc_update_bits(codec,
+		MD_CTL1, PLL_MASK, pll));
+
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -334,6 +368,7 @@ static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct snd_soc_codec *codec = dai->codec;
 	u8 data;
 	u8 bcko;
+	int ret;
 
 	data = MCKO | PMPLL; /* use MCKO */
 	bcko = 0;
@@ -349,8 +384,15 @@ static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	default:
 		return -EINVAL;
 	}
-	snd_soc_update_bits(codec, PW_MGMT2, MS | MCKO | PMPLL, data);
-	snd_soc_update_bits(codec, MD_CTL1, BCKO_MASK, bcko);
+	ret = ak4642_err_retry(snd_soc_update_bits(codec,
+		PW_MGMT2, MS | MCKO | PMPLL, data));
+	if (ret < 0)
+		return ret;
+
+	ret = ak4642_err_retry(snd_soc_update_bits(codec,
+		MD_CTL1, BCKO_MASK, bcko));
+	if (ret < 0)
+		return ret;
 
 	/* format type */
 	data = 0;
@@ -367,7 +409,11 @@ static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	default:
 		return -EINVAL;
 	}
-	snd_soc_update_bits(codec, MD_CTL1, DIF_MASK, data);
+
+	ret = ak4642_err_retry(snd_soc_update_bits(codec,
+		MD_CTL1, DIF_MASK, data));
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -378,6 +424,7 @@ static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u8 rate;
+	int ret;
 
 	switch (params_rate(params)) {
 	case 7350:
@@ -419,7 +466,11 @@ static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
-	snd_soc_update_bits(codec, MD_CTL2, FS_MASK, rate);
+	ret = ak4642_err_retry(snd_soc_update_bits(codec,
+		MD_CTL2, FS_MASK, rate));
+
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
@@ -427,31 +478,72 @@ static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
 static int ak4642_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	int ret = 0;
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
-			snd_soc_update_bits(codec, PW_MGMT1, PMVCM, PMVCM);
+			ret = ak4642_err_retry(snd_soc_update_bits(codec,
+				PW_MGMT1, PMVCM, PMVCM));
+			if (ret < 0)
+				return ret;
 
 			/* start stereo input */
-			snd_soc_update_bits(codec, SG_SL1, PMMP | MGAIN0,
-						PMMP | MGAIN0);
-			snd_soc_write(codec, TIMER, ZTM(0x3) | WTM(0x3));
-			snd_soc_write(codec, ALC_CTL1, ALC | LMTH0);
-			snd_soc_update_bits(codec, PW_MGMT1, PMADL, PMADL);
-			snd_soc_update_bits(codec, PW_MGMT3, PMADR, PMADR);
+			ret = ak4642_err_retry(snd_soc_update_bits(codec,
+				SG_SL1, PMMP | MGAIN0, PMMP | MGAIN0));
+			if (ret < 0)
+				return ret;
+
+			ret = ak4642_err_retry(snd_soc_write(codec,
+				TIMER, ZTM(0x3) | WTM(0x3)));
+			if (ret < 0)
+				return ret;
+
+			ret = ak4642_err_retry(snd_soc_write(codec,
+				ALC_CTL1, ALC | LMTH0));
+			if (ret < 0)
+				return ret;
+
+			ret = ak4642_err_retry(snd_soc_update_bits(codec,
+				PW_MGMT1, PMADL, PMADL));
+			if (ret < 0)
+				return ret;
+
+			ret = ak4642_err_retry(snd_soc_update_bits(codec,
+				PW_MGMT3, PMADR, PMADR));
+			if (ret < 0)
+				return ret;
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* stop stereo input */
-		snd_soc_update_bits(codec, SG_SL1, PMMP, 0);
-		snd_soc_update_bits(codec, PW_MGMT1, PMADL, 0);
-		snd_soc_update_bits(codec, PW_MGMT3, PMADR, 0);
-		snd_soc_update_bits(codec, ALC_CTL1, ALC, 0);
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			SG_SL1, PMMP, 0));
+		if (ret < 0)
+			return ret;
 
-		snd_soc_write(codec, PW_MGMT1, 0x00);
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			PW_MGMT1, PMADL, 0));
+		if (ret < 0)
+			return ret;
+
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			PW_MGMT3, PMADR, 0));
+		if (ret < 0)
+			return ret;
+
+		ret = ak4642_err_retry(snd_soc_update_bits(codec,
+			ALC_CTL1, ALC, 0));
+		if (ret < 0)
+			return ret;
+
+		ret = ak4642_err_retry(snd_soc_write(codec,
+			PW_MGMT1, 0x00));
+		if (ret < 0)
+			return ret;
 		break;
 	}
 	codec->dapm.bias_level = level;
