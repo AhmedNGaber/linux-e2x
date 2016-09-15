@@ -401,6 +401,13 @@ static int sh_mobile_sdhi_select_tuning(struct tmio_mmc_host *host,
 	/* Select SCC */
 	tap_num = (readl(host->ctl + SH_MOBILE_SDHI_SCC_DTCNTL) >> 16) & 0xf;
 
+	for (i = 0; i < tap_num * 2; i++) {
+		if (tap[i]) {
+			tap[i % tap_num] = tap[i];
+			tap[(i % tap_num) + tap_num] = tap[i];
+		}
+	}
+
 	tap_cnt = 0;
 	ntap = 0;
 	tap_start = 0;
