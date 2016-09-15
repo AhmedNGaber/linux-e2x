@@ -57,6 +57,9 @@ enum tmio_mmc_power {
 	TMIO_MMC_ON_RUN,	/* card power on, controller running */
 };
 
+#define TMIO_TRANSTATE_DEND	0x00000001
+#define TMIO_TRANSTATE_AEND	0x00000002
+
 struct tmio_mmc_host {
 	void __iomem *ctl;
 	struct mmc_command      *cmd;
@@ -104,6 +107,9 @@ struct tmio_mmc_host {
 	bool			resuming;
 	bool			done_tuning;
 	struct completion	completion;
+
+	spinlock_t			trans_lock;
+	unsigned int		trans_state;
 };
 
 int tmio_mmc_host_probe(struct tmio_mmc_host **host,
@@ -111,6 +117,9 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 			struct tmio_mmc_data *pdata);
 void tmio_mmc_host_remove(struct tmio_mmc_host *host);
 void tmio_mmc_do_data_irq(struct tmio_mmc_host *host);
+
+void tmio_set_transtate(struct tmio_mmc_host *host, unsigned int state);
+void tmio_clear_transtate(struct tmio_mmc_host *host);
 
 void tmio_mmc_enable_mmc_irqs(struct tmio_mmc_host *host, u32 i);
 void tmio_mmc_disable_mmc_irqs(struct tmio_mmc_host *host, u32 i);

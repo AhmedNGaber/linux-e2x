@@ -53,6 +53,20 @@ void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 	tmio_mmc_enable_dma(host, true);
 }
 
+static void tmio_mmc_rx_dma_complete(void *arg)
+{
+	struct tmio_mmc_host *host = arg;
+
+	tmio_set_transtate(host, TMIO_TRANSTATE_DEND);
+}
+
+static void tmio_mmc_tx_dma_complete(void *arg)
+{
+	struct tmio_mmc_host *host = arg;
+
+	tmio_set_transtate(host, TMIO_TRANSTATE_DEND);
+}
+
 static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 {
 	struct scatterlist *sg = host->sg_ptr, *sg_tmp;
@@ -106,6 +120,9 @@ static void tmio_mmc_start_dma_rx(struct tmio_mmc_host *host)
 			DMA_DEV_TO_MEM, DMA_CTRL_ACK);
 
 	if (desc) {
+		desc->callback = tmio_mmc_rx_dma_complete;
+		desc->callback_param = host;
+
 		cookie = dmaengine_submit(desc);
 		if (cookie < 0) {
 			desc = NULL;
@@ -194,6 +211,9 @@ static void tmio_mmc_start_dma_tx(struct tmio_mmc_host *host)
 			DMA_MEM_TO_DEV, DMA_CTRL_ACK);
 
 	if (desc) {
+		desc->callback = tmio_mmc_tx_dma_complete;
+		desc->callback_param = host;
+
 		cookie = dmaengine_submit(desc);
 		if (cookie < 0) {
 			desc = NULL;
@@ -229,6 +249,8 @@ void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 			       struct mmc_data *data)
 {
 	struct tmio_mmc_data *pdata = host->pdata;
+
+	tmio_clear_transtate(host);
 
 	if (pdata->dma && (!host->chan_tx || !host->chan_rx)) {
 		struct resource *res = platform_get_resource(host->pdev,
