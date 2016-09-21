@@ -188,7 +188,8 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 	if (ret < 0)
 		return ret;
 
-	rsnd_ssi_register_setup_wsr(mod);	/* after rsnd_ssi_config_init */
+	if (rsnd_ssi_is_parent(ssi))
+		rsnd_ssi_register_setup_wsr(mod);
 	ret = __rsnd_ssi_master_clk_start(ssi, io, ssi_flag);
 	if (ret < 0)
 		return ret;
