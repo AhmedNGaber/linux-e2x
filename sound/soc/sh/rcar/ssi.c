@@ -136,6 +136,16 @@ static void rsnd_ssi_status_check(struct rsnd_mod *mod,
 	dev_warn(dev, "status check failed\n");
 }
 
+static void rsnd_ssi_register_setup_wsr(struct rsnd_mod *mod)
+{
+	u32 status;
+
+	/* enable WS continue */
+	status = rsnd_mod_read(mod, SSIWSR);
+	if (!(status & CONT))
+		rsnd_mod_write(mod, SSIWSR, CONT);
+}
+
 static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 				     struct rsnd_dai_stream *io)
 {
@@ -215,11 +225,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 		if (rsnd_rdai_is_clk_master(rdai)) {
 			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
 
-			/* enable WS continue */
-			status = rsnd_mod_read(mod, SSIWSR);
-			if (!(status & CONT))
-				rsnd_mod_write(mod, SSIWSR, CONT);
-
+			rsnd_ssi_register_setup_wsr(mod);
 			if (ssi_parent)
 				rsnd_ssi_hw_start(ssi->parent, rdai, io);
 			else
