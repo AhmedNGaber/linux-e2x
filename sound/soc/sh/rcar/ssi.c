@@ -215,8 +215,6 @@ static void __rsnd_ssi_start(struct rsnd_ssi *ssi,
 			      struct rsnd_dai_stream *io)
 {
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr, status;
 
 	if (0 == ssi->usrcnt) {
@@ -244,8 +242,6 @@ static void __rsnd_ssi_start(struct rsnd_ssi *ssi,
 	rsnd_mod_write(mod, SSICR, cr);
 
 	ssi->usrcnt++;
-
-	dev_dbg(dev, "ssi%d hw started\n", rsnd_mod_id(mod));
 }
 
 static void rsnd_ssi_power_off(struct rsnd_ssi *ssi,
@@ -281,9 +277,7 @@ static void __rsnd_ssi_stop(struct rsnd_ssi *ssi,
 			     struct rsnd_dai *rdai)
 {
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
-	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
-	struct device *dev = rsnd_priv_to_dev(priv);
 	u32 cr;
 
 	if (0 == ssi->usrcnt) /* stop might be called without start */
@@ -311,8 +305,6 @@ static void __rsnd_ssi_stop(struct rsnd_ssi *ssi,
 
 	/* clear error status */
 	rsnd_ssi_status_clear(mod);
-
-	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(mod));
 }
 
 static int rsnd_ssi_config_init_cr_own(struct rsnd_mod *mod,
