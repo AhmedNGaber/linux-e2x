@@ -93,11 +93,16 @@ struct rsnd_ssi {
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 
+static int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
+
 static int rsnd_ssi_use_busif(struct rsnd_mod *mod)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	int use_busif = 0;
+
+	if (!rsnd_ssi_is_dma_mode(mod))
+		return 0;
 
 	if (!(rsnd_ssi_mode_flags(ssi) & RSND_SSI_NO_BUSIF))
 		use_busif = 1;
@@ -887,6 +892,11 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 static struct rsnd_mod_ops rsnd_ssi_non_ops = {
 	.name	= SSI_NAME,
 };
+
+static int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod)
+{
+	return mod->ops == &rsnd_ssi_dma_ops;
+}
 
 /*
  *		ssi mod function
