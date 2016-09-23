@@ -240,9 +240,6 @@ static void __rsnd_ssi_start(struct rsnd_mod *mod,
 		ssi->cr_etc	|
 		EN;
 
-	/* clear error status */
-	rsnd_ssi_status_clear(mod);
-
 	rsnd_mod_write(mod, SSICR, cr);
 
 	ssi->usrcnt++;
@@ -305,9 +302,6 @@ static int __rsnd_ssi_stop(struct rsnd_mod *mod,
 	 */
 	rsnd_mod_write(mod, SSICR, cr);	/* disabled all */
 	rsnd_ssi_status_check(mod, IDST);
-
-	/* clear error status */
-	rsnd_ssi_status_clear(mod);
 
 	return 0;
 }
@@ -396,6 +390,8 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 	ret = rsnd_src_ssiu_init(mod, rdai, rsnd_ssi_use_busif(mod));
+
+	rsnd_ssi_status_clear(mod);
 
 	return ret;
 }
