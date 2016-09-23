@@ -210,7 +210,7 @@ static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi)
 	rsnd_adg_ssi_clk_stop(mod);
 }
 
-static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
+static void __rsnd_ssi_start(struct rsnd_ssi *ssi,
 			      struct rsnd_dai *rdai,
 			      struct rsnd_dai_stream *io)
 {
@@ -227,7 +227,7 @@ static void rsnd_ssi_hw_start(struct rsnd_ssi *ssi,
 
 			rsnd_ssi_register_setup_wsr(mod);
 			if (ssi_parent)
-				rsnd_ssi_hw_start(ssi->parent, rdai, io);
+				__rsnd_ssi_start(ssi->parent, rdai, io);
 			else
 				rsnd_ssi_master_clk_start(ssi, io);
 		}
@@ -277,7 +277,7 @@ static void rsnd_ssi_power_off(struct rsnd_ssi *ssi,
 	}
 }
 
-static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
+static void __rsnd_ssi_stop(struct rsnd_ssi *ssi,
 			     struct rsnd_dai *rdai)
 {
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
@@ -510,7 +510,7 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 			return -EIO;
 	}
 
-	/* It will be removed on rsnd_ssi_hw_stop */
+	/* It will be removed on __rsnd_ssi_stop */
 	ssi->chan = chan;
 
 	return 0;
@@ -636,7 +636,7 @@ static int rsnd_ssi_pio_start(struct rsnd_mod *mod,
 
 	rsnd_src_enable_ssi_irq(mod, rdai);
 
-	rsnd_ssi_hw_start(ssi, rdai, io);
+	__rsnd_ssi_start(ssi, rdai, io);
 
 	return 0;
 }
@@ -648,7 +648,7 @@ static int rsnd_ssi_pio_stop(struct rsnd_mod *mod,
 
 	ssi->cr_etc = 0;
 
-	rsnd_ssi_hw_stop(ssi, rdai);
+	__rsnd_ssi_stop(ssi, rdai);
 
 	rsnd_src_ssiu_stop(mod, rdai, 0);
 
@@ -788,7 +788,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 		/* enable Overflow and Underflow IRQ */
 		ssi->cr_etc |= UIEN | OIEN;
 
-		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		__rsnd_ssi_start(ssi, ssi->rdai, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
 		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
@@ -801,7 +801,7 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 		/* enable Overflow and Underflow IRQ */
 		ssi->cr_etc |= UIEN | OIEN;
 
-		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		__rsnd_ssi_start(ssi, ssi->rdai, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 	}
 
@@ -829,11 +829,11 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
 	if (rsnd_io_is_play(io)) {
-		rsnd_ssi_hw_stop(ssi, rdai);
+		__rsnd_ssi_stop(ssi, rdai);
 		rsnd_src_ssiu_stop(mod, rdai, 1);
 	} else {
 		rsnd_src_ssiu_stop(mod, rdai, 1);
-		rsnd_ssi_hw_stop(ssi, rdai);
+		__rsnd_ssi_stop(ssi, rdai);
 	}
 
 	return 0;
@@ -848,22 +848,22 @@ static int rsnd_ssi_dma_stop_start_irq(struct rsnd_mod *mod,
 	if (rsnd_io_is_play(io)) {
 		/* STOP */
 		rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
-		rsnd_ssi_hw_stop(ssi, rdai);
+		__rsnd_ssi_stop(ssi, rdai);
 		rsnd_src_ssiu_stop(mod, rdai, 1);
 
 		/* START */
-		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		__rsnd_ssi_start(ssi, ssi->rdai, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 	} else {
 		/* STOP */
 		rsnd_src_disable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 		rsnd_src_ssiu_stop(mod, rdai, 1);
-		rsnd_ssi_hw_stop(ssi, rdai);
+		__rsnd_ssi_stop(ssi, rdai);
 
 		/* START */
 		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
-		rsnd_ssi_hw_start(ssi, ssi->rdai, io);
+		__rsnd_ssi_start(ssi, ssi->rdai, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 	}
 
