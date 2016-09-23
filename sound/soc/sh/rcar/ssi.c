@@ -315,8 +315,8 @@ static void rsnd_ssi_hw_stop(struct rsnd_ssi *ssi,
 	dev_dbg(dev, "ssi%d hw stopped\n", rsnd_mod_id(mod));
 }
 
-static int rsnd_ssi_config_init(struct rsnd_mod *mod,
-				struct rsnd_dai_stream *io)
+static int rsnd_ssi_config_init_cr_own(struct rsnd_mod *mod,
+				      struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
@@ -359,8 +359,26 @@ static int rsnd_ssi_config_init(struct rsnd_mod *mod,
 	/*
 	 * set ssi parameter
 	 */
-	ssi->rdai	= rdai;
 	ssi->cr_own	= cr;
+
+	return 0;
+}
+
+static int rsnd_ssi_config_init(struct rsnd_mod *mod,
+				struct rsnd_dai_stream *io)
+{
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	int ret;
+
+	ret = rsnd_ssi_config_init_cr_own(mod, io);
+	if (ret)
+		return ret;
+
+	/*
+	 * set ssi parameter
+	 */
+	ssi->rdai	= rdai;
 	ssi->err	= -1; /* ignore 1st error */
 	ssi->err_uirq	= 0;
 	ssi->err_oirq	= 0;
