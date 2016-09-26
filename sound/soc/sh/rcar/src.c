@@ -422,7 +422,7 @@ static void rsnd_src_set_reconvert_rate(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, SRC_IFSVR, fsrate);
 }
 
-static int rsnd_src_status_clear(struct rsnd_mod *mod)
+int rsnd_src_status_clear(struct rsnd_mod *mod)
 {
 	u32 val = OUF_SRC(rsnd_mod_id(mod));
 
@@ -437,12 +437,9 @@ static int rsnd_src_status_clear(struct rsnd_mod *mod)
 static int rsnd_src_init(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
-	int ret;
-
 	rsnd_mod_power_on(mod);
-	ret = rsnd_src_status_clear(mod);
 
-	return ret;
+	return 0;
 }
 
 static int rsnd_src_quit(struct rsnd_mod *mod,
@@ -676,8 +673,6 @@ static void rsnd_src_irq_enable(struct rsnd_mod *mod, struct rsnd_dai *rdai)
 {
 	int is_use_syncsrc = rsnd_src_use_syncsrc(mod);
 	int src_id = rsnd_mod_id(mod);
-
-	rsnd_src_status_clear(mod);
 
 	if (is_use_syncsrc) {
 		/* Enable SRCx_INT_ENABLE0 */
@@ -951,6 +946,9 @@ static int rsnd_src_start_gen2(struct rsnd_mod *mod,
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	u32 val;
+
+	if (!rsnd_io_has_cmd(io))
+		rsnd_src_status_clear(mod);
 
 	if (rsnd_src_use_syncsrc(mod))
 		val = 0x11;

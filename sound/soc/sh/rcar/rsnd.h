@@ -471,6 +471,7 @@ int rsnd_src_enable_dma_ssi_irq(struct rsnd_mod *ssi_mod,
 int rsnd_src_disable_dma_ssi_irq(struct rsnd_mod *ssi_mod,
 				 struct rsnd_dai *rdai,
 				 int use_busif);
+int rsnd_src_status_clear(struct rsnd_mod *mod);
 
 #define rsnd_src_nr(priv) ((priv)->src_nr)
 

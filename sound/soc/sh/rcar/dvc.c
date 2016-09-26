@@ -161,6 +161,7 @@ static int rsnd_dvc_quit(struct rsnd_mod *mod,
 static int rsnd_dvc_start(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai)
 {
+	rsnd_src_status_clear(mod);
 	rsnd_mod_write(mod, CMD_CTRL, 0x10);
 
 	return 0;
