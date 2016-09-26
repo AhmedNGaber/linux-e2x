@@ -69,6 +69,7 @@ struct rsnd_ssi {
 	struct rsnd_dai *rdai;
 	u32 cr_own;
 	u32 cr_clk;
+	u32 cr_mode;
 	u32 cr_etc;
 	int chan;
 	int err;
@@ -90,10 +91,17 @@ struct rsnd_ssi {
 #define rsnd_ssi_dma_available(ssi) \
 	rsnd_dma_available(rsnd_mod_to_dma(&(ssi)->mod))
 #define rsnd_ssi_parent(ssi) ((ssi)->parent)
+#define rsnd_ssi_is_parent(ssi) (!(ssi)->parent)
 #define rsnd_ssi_mode_flags(p) ((p)->info->flags)
 #define rsnd_ssi_dai_id(ssi) ((ssi)->info->dai_id)
 
 static int rsnd_ssi_is_dma_mode(struct rsnd_mod *mod);
+static int __rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
+				       struct rsnd_dai_stream *io, int ssi_flag);
+static int rsnd_ssi_config_init(struct rsnd_mod *mod,
+				struct rsnd_dai_stream *io);
+static int rsnd_ssi_dma_stop_start_irq(struct rsnd_mod *mod,
+				       struct rsnd_dai *rdai);
 
 static int rsnd_ssi_use_busif(struct rsnd_mod *mod)
 {
@@ -151,12 +159,52 @@ static void rsnd_ssi_register_setup_wsr(struct rsnd_mod *mod)
 		rsnd_mod_write(mod, SSIWSR, CONT);
 }
 
+static void rsnd_ssi_register_setup_cr(struct rsnd_mod *mod, int ssi_flag)
+{
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	u32 cr;
+	u32 value;
+
+	cr = ssi->cr_own | ssi->cr_clk;
+	if (ssi_flag)
+		cr |= ssi->cr_mode;
+
+	if (!ssi_flag) {
+		value = rsnd_mod_read(mod, SSICR);
+		if (value & EN)
+			return;
+	}
+
+	rsnd_mod_write(mod, SSICR, cr);
+}
+
 static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
-				     struct rsnd_dai_stream *io)
+				     struct rsnd_dai_stream *io, int ssi_flag)
+{
+	struct rsnd_mod *mod = rsnd_mod_get(ssi);
+	int ret;
+
+	ret = rsnd_ssi_config_init(mod, io);
+	if (ret < 0)
+		return ret;
+
+	rsnd_ssi_register_setup_wsr(mod);	/* after rsnd_ssi_config_init */
+	ret = __rsnd_ssi_master_clk_start(ssi, io, ssi_flag);
+	if (ret < 0)
+		return ret;
+	rsnd_ssi_register_setup_cr(mod, ssi_flag);
+
+	return ret;
+}
+
+static int __rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
+				       struct rsnd_dai_stream *io, int ssi_flag)
 {
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
 	int i, j, ret;
 	int adg_clk_div_table[] = {
 		1, 6, /* see adg.c */
@@ -165,9 +213,31 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 		1, 2, 4, 8, 16, 6, 12,
 	};
 	unsigned int main_rate;
-	unsigned int rate = rsnd_io_is_play(io) ?
+	unsigned int rate;
+
+	if (ssi_parent) {
+		ssi_parent->usrcnt++;
+		rsnd_mod_power_on(&(ssi_parent->mod));
+		return rsnd_ssi_master_clk_start(ssi_parent, io, 0);
+	}
+
+	if (!rsnd_rdai_is_clk_master(rdai))
+		return 0;
+
+	if (!rsnd_ssi_is_parent(ssi))
+		return 0;
+
+	rate = rsnd_io_is_play(io) ?
 		rsnd_src_get_out_rate(priv, io) :
 		rsnd_src_get_in_rate(priv, io);
+
+	if (ssi->usrcnt > 1) {
+		if (ssi->rate != rate) {
+			dev_err(dev, "SSI parent/child should use same rate\n");
+			return -EINVAL;
+		}
+		return 0;
+	}
 
 #ifdef QUICK_HACK
 	dev_dbg(dev, "src_get_ssi_rate = %d\n", rate);
@@ -206,72 +276,47 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 	return -EIO;
 }
 
-static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi)
+static void rsnd_ssi_master_clk_stop(struct rsnd_ssi *ssi,
+				      struct rsnd_dai_stream *io)
 {
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
+	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
 
-	ssi->rate = 0;
-	ssi->cr_clk = 0;
+	if (ssi_parent) {
+		rsnd_ssi_master_clk_stop(ssi_parent, io);
+		ssi_parent->usrcnt--;
+		return;
+	}
+
+	if (!rsnd_rdai_is_clk_master(rdai))
+		return;
+
+	if (ssi->usrcnt > 1)
+		return;
+
+	ssi->cr_clk	= 0;
+	ssi->rate	= 0;
+
 	rsnd_adg_ssi_clk_stop(mod);
 }
 
-static void __rsnd_ssi_start(struct rsnd_mod *mod,
-			      struct rsnd_dai_stream *io)
+static int __rsnd_ssi_start(struct rsnd_mod *mod,
+			   struct rsnd_dai_stream *io)
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
-	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
-	u32 cr, status;
+	u32 value;
 
-	if (0 == ssi->usrcnt) {
-		rsnd_mod_power_on(mod);
+	if (ssi_parent)
+		__rsnd_ssi_start(&(ssi_parent)->mod, io);
 
-		if (rsnd_rdai_is_clk_master(rdai)) {
-			rsnd_ssi_register_setup_wsr(mod);
-			if (ssi_parent)
-				__rsnd_ssi_start(rsnd_mod_get(ssi->parent), io);
-			else
-				rsnd_ssi_master_clk_start(ssi, io);
-		}
-	}
+	value = rsnd_mod_read(mod, SSICR);
+	if (value & EN)
+		return 0;
+	rsnd_mod_bset(mod, SSICR, EN, EN);
 
-	cr  =	ssi->cr_own	|
-		ssi->cr_clk	|
-		ssi->cr_etc	|
-		EN;
-
-	rsnd_mod_write(mod, SSICR, cr);
-
-	ssi->usrcnt++;
-}
-
-static void rsnd_ssi_power_off(struct rsnd_ssi *ssi,
-			      struct rsnd_dai *rdai)
-{
-	struct rsnd_mod *mod = rsnd_mod_get(ssi);
-
-	if (0 == ssi->usrcnt) {
-		if (rsnd_rdai_is_clk_master(rdai)) {
-			struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
-
-			if (ssi_parent) {
-				if (0 == --(ssi_parent->usrcnt)) {
-					rsnd_ssi_master_clk_stop(ssi->parent);
-					rsnd_mod_power_off(&ssi->parent->mod);
-					/* disable WS continue */
-					rsnd_mod_write(&ssi->parent->mod, SSIWSR, 0);
-				}
-			} else {
-				rsnd_ssi_master_clk_stop(ssi);
-			}
-			/* disable WS continue */
-			rsnd_mod_write(mod, SSIWSR, 0);
-		}
-
-		rsnd_mod_power_off(mod);
-
-		ssi->chan = 0;
-	}
+	return 0;
 }
 
 static int __rsnd_ssi_stop(struct rsnd_mod *mod,
@@ -279,11 +324,12 @@ static int __rsnd_ssi_stop(struct rsnd_mod *mod,
 {
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	u32 cr;
+	struct rsnd_ssi *ssi_parent = rsnd_ssi_parent(ssi);
 
-	if (0 == ssi->usrcnt) /* stop might be called without start */
-		return 0;
-
-	ssi->usrcnt--;
+	if (ssi_parent) {
+		if (ssi_parent->usrcnt == 1)
+			rsnd_mod_bset(&(ssi_parent)->mod, SSICR, EN, 0);
+	}
 
 	/*
 	 * disable all IRQ,
@@ -360,6 +406,7 @@ static int rsnd_ssi_config_init(struct rsnd_mod *mod,
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+	u32 cr;
 	int ret;
 
 	ret = rsnd_ssi_config_init_cr_own(mod, io);
@@ -370,6 +417,15 @@ static int rsnd_ssi_config_init(struct rsnd_mod *mod,
 	 * set ssi parameter
 	 */
 	ssi->rdai	= rdai;
+
+	if (rsnd_ssi_is_dma_mode(mod)) {
+		cr =	UIEN | OIEN |	/* over/under run */
+			DMEN;		/* DMA : enable DMA */
+	} else {
+		cr =	DIEN;		/* PIO : enable Data interrupt */
+	}
+
+	ssi->cr_mode	= cr;
 	ssi->err	= -1; /* ignore 1st error */
 	ssi->err_uirq	= 0;
 	ssi->err_oirq	= 0;
@@ -384,11 +440,14 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	int ret;
 
-	ret = rsnd_ssi_config_init(mod, io);
-	if (ret < 0)
-		return ret;
+	ssi->usrcnt++;
+
+	rsnd_mod_power_on(mod);
+
+	ret = rsnd_ssi_master_clk_start(ssi, io, 1);
 	ret = rsnd_src_ssiu_init(mod, rdai, rsnd_ssi_use_busif(mod));
 
 	rsnd_ssi_status_clear(mod);
@@ -399,11 +458,13 @@ static int rsnd_ssi_init(struct rsnd_mod *mod,
 static int rsnd_ssi_quit(struct rsnd_mod *mod,
 			 struct rsnd_dai *rdai)
 {
+	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 
-	rsnd_ssi_power_off(ssi, rdai);
+	if (rsnd_ssi_is_parent(ssi))
+		goto rsnd_ssi_quit_end;
 
 	if (ssi->err > 0)
 		dev_warn(dev, "ssi under/over flow err = %d\n", ssi->err);
@@ -417,6 +478,15 @@ static int rsnd_ssi_quit(struct rsnd_mod *mod,
 	ssi->err	= 0;
 	ssi->err_uirq	= 0;
 	ssi->err_oirq	= 0;
+
+rsnd_ssi_quit_end:
+	rsnd_ssi_master_clk_stop(ssi, io);
+	rsnd_mod_power_off(mod);
+	ssi->usrcnt--;
+
+	if (ssi->usrcnt < 0)
+		dev_err(dev, "%s[%d] usrcnt error\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
 
 	return 0;
 }
@@ -659,12 +729,6 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.hw_params = rsnd_ssi_hw_params,
 };
 
-/*
- *		SSI DMA functions
- */
-static int rsnd_ssi_dma_stop_start_irq(struct rsnd_mod *mod,
-				       struct rsnd_dai *rdai);
-
 static irqreturn_t rsnd_ssi_dma_interrupt(int irq, void *data)
 {
 	struct rsnd_ssi *ssi = data;
@@ -772,28 +836,15 @@ static int rsnd_ssi_dma_start(struct rsnd_mod *mod,
 static int rsnd_ssi_start(struct rsnd_mod *mod,
 			  struct rsnd_dai *rdai)
 {
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	struct rsnd_dai_stream *io = rsnd_mod_to_io(mod);
 
 	if (rsnd_io_is_play(io)) {
-		/* enable DMA transfer */
-		ssi->cr_etc = DMEN;
-
-		/* enable Overflow and Underflow IRQ */
-		ssi->cr_etc |= UIEN | OIEN;
-
 		__rsnd_ssi_start(mod, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
 
 		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
 	} else {
 		rsnd_src_ssiu_start(mod, rdai, rsnd_ssi_use_busif(mod));
-
-		/* enable DMA transfer */
-		ssi->cr_etc = DMEN;
-
-		/* enable Overflow and Underflow IRQ */
-		ssi->cr_etc |= UIEN | OIEN;
 
 		__rsnd_ssi_start(mod, io);
 		rsnd_src_enable_dma_ssi_irq(mod, rdai, rsnd_ssi_use_busif(mod));
