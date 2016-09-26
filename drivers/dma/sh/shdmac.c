@@ -498,8 +498,15 @@ static bool sh_dmae_chan_irq(struct shdma_chan *schan, int irq)
 	if (!(chcr & chcr_mask))
 		return false;
 
-	if (dmae_needs_tend_set(sh_chan))
-		sh_chan->last_chcr = chcr;
+	if (dmae_needs_tend_set(sh_chan)) {
+		struct sh_dmae_device *shdev = to_sh_dev(sh_chan);
+
+		if (chcr & shdev->chcr_ie_bit)
+			sh_chan->last_chcr = chcr;
+		else
+			/* CHCR_FTE asserted CHCR_TE */
+			return false;
+	}
 
 	/* DMA stop */
 	dmae_halt(sh_chan);
