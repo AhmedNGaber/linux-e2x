@@ -547,9 +547,28 @@ static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command
 
 	/* CMD12 is handled by hardware */
 	if (cmd->opcode == MMC_STOP_TRANSMISSION && !cmd->arg) {
+#if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
+		u32 status = sd_ctrl_read32(host, CTL_STATUS);
+
+		if (pdata->flags & TMIO_MMC_CHECK_ILL_FUNC) {
+			if (!(status & TMIO_STAT_ILL_FUNC)) {
+				sd_ctrl_write16(host,
+					CTL_STOP_INTERNAL_ACTION, 0x001);
+				return 0;
+			}
+		} else {
+			if (status & TMIO_STAT_CMD_BUSY) {
+				sd_ctrl_write16(host,
+					CTL_STOP_INTERNAL_ACTION, 0x001);
+				return 0;
+			}
+		}
+	}
+#else
 		sd_ctrl_write16(host, CTL_STOP_INTERNAL_ACTION, 0x001);
 		return 0;
 	}
+#endif
 
 	switch (mmc_resp_type(cmd)) {
 	case MMC_RSP_NONE: c |= RESP_NONE; break;
