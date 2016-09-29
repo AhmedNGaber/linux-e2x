@@ -117,6 +117,12 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 
 	rcar_lvds_write(lvds, LVDCHCR, lvdhcr);
 
+	/* Turn all the channels on. */
+	if (!rcar_du_needs(rcrtc->group->dev, RCAR_DU_QUIRK_LVDS_CH_DATA_GAP))
+		rcar_lvds_write(lvds, LVDCR1, LVDCR1_CHSTBY(3) |
+				 LVDCR1_CHSTBY(2) | LVDCR1_CHSTBY(1) |
+				 LVDCR1_CHSTBY(0) | LVDCR1_CLKSTBY);
+
 	/* Select the input, hardcode mode 0, enable LVDS operation and turn
 	 * bias circuitry on.
 	 */
@@ -166,11 +172,6 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 
 		spin_unlock_irqrestore(&lvdsenc_lock, flags);
 	} else {
-		/* Turn all the channels on. */
-		rcar_lvds_write(lvds, LVDCR1, LVDCR1_CHSTBY(3) |
-				 LVDCR1_CHSTBY(2) | LVDCR1_CHSTBY(1) |
-				 LVDCR1_CHSTBY(0) | LVDCR1_CLKSTBY);
-
 		/* Turn the PLL on, wait for the startup delay,
 			 and turn the output on. */
 		lvdcr0 |= LVDCR0_PLLEN;
@@ -182,10 +183,6 @@ int rcar_du_lvdsenc_start(struct rcar_du_lvdsenc *lvds,
 		rcar_lvds_write(lvds, LVDCR0, lvdcr0);
 	}
 #else
-	/* Turn all the channels on. */
-	rcar_lvds_write(lvds, LVDCR1, LVDCR1_CHSTBY(3) | LVDCR1_CHSTBY(2) |
-			LVDCR1_CHSTBY(1) | LVDCR1_CHSTBY(0) | LVDCR1_CLKSTBY);
-
 	/* Turn the PLL on, wait for the startup delay, and turn the output
 	 * on.
 	 */
