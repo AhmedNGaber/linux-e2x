@@ -1059,7 +1059,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 		uep->ep.name		= uep->ep_name;
 		uep->ep.ops		= &usbhsg_ep_ops;
 		INIT_LIST_HEAD(&uep->ep.ep_list);
-		pipe_type = usbhs_get_dparam(priv, pipe_type[i]);
+		pipe_type = usbhs_get_dparam(priv, pipe_configs[i].type);
 
 		switch (pipe_type) {
 		case USB_ENDPOINT_XFER_CONTROL:
