@@ -340,7 +340,7 @@ static void tmio_mmc_issue_tasklet_fn(unsigned long priv)
 
 	spin_unlock_irq(&host->lock);
 
-	tmio_mmc_enable_mmc_irqs(host, TMIO_STAT_DATAEND);
+	tmio_mmc_enable_mmc_irqs(host, TMIO_MASK_DMA);
 
 	if (chan)
 		dma_async_issue_pending(chan);

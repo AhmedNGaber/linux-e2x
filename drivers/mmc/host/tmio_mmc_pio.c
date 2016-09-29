@@ -287,6 +287,7 @@ static void tmio_mmc_reset_work(struct work_struct *work)
 
 	/* Ready for new calls */
 	host->mrq = NULL;
+	host->done_tuning = false;
 
 	tmio_mmc_abort_dma(host);
 	mmc_request_done(host->mmc, mrq);
@@ -336,7 +337,10 @@ static void tmio_mmc_finish_request(struct tmio_mmc_host *host)
 	/* Check retuning */
 	if (pdata->retuning && host->done_tuning) {
 		result = pdata->retuning(host);
-		if (result || (mrq->cmd->error == -EILSEQ))
+		if (result || mrq->cmd->error == -EILSEQ ||
+		    mrq->cmd->error == -ETIMEDOUT ||
+		    (mrq->data && (mrq->data->error == -EILSEQ ||
+		    mrq->data->error == -ETIMEDOUT)))
 			host->done_tuning = false;
 	}
 
@@ -697,6 +701,29 @@ void tmio_mmc_do_data_irq(struct tmio_mmc_host *host)
 	schedule_work(&host->done);
 }
 
+static void tmio_mmc_data_timeout_irq(struct tmio_mmc_host *host)
+{
+	struct mmc_data *data;
+
+	spin_lock(&host->lock);
+	data = host->data;
+
+	if (!data)
+		goto out;
+
+	data->error = -ETIMEDOUT;
+	if (((host->chan_tx && (data->flags & MMC_DATA_WRITE)) ||
+	    (host->chan_rx && (data->flags & MMC_DATA_READ))) &&
+	    !host->force_pio)
+		tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_DMA);
+	else
+		tmio_mmc_disable_mmc_irqs(host,
+					TMIO_MASK_READOP | TMIO_MASK_WRITEOP);
+	tmio_mmc_do_data_irq(host);
+out:
+	spin_unlock(&host->lock);
+}
+
 static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 {
 	struct mmc_data *data;
@@ -721,19 +748,17 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 		 */
 		if (pdata->flags & TMIO_MMC_CHECK_ILL_FUNC) {
 			if (sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_ILL_FUNC) {
-				tmio_mmc_disable_mmc_irqs(host,
-							  TMIO_STAT_DATAEND);
+				tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_DMA);
 				tmio_set_transtate(host, TMIO_TRANSTATE_AEND);
 			}
 		} else {
 			if (!(sd_ctrl_read32(host, CTL_STATUS) & TMIO_STAT_CMD_BUSY)) {
-				tmio_mmc_disable_mmc_irqs(host,
-							  TMIO_STAT_DATAEND);
+				tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_DMA);
 				tmio_set_transtate(host, TMIO_TRANSTATE_AEND);
 			}
 		}
 	} else if (host->chan_rx && (data->flags & MMC_DATA_READ) && !host->force_pio) {
-		tmio_mmc_disable_mmc_irqs(host, TMIO_STAT_DATAEND);
+		tmio_mmc_disable_mmc_irqs(host, TMIO_MASK_DMA);
 		tmio_set_transtate(host, TMIO_TRANSTATE_AEND);
 	} else {
 		tmio_mmc_do_data_irq(host);
@@ -864,6 +889,15 @@ static bool __tmio_mmc_sdcard_irq(struct tmio_mmc_host *host,
 	if (ireg & (TMIO_STAT_RXRDY | TMIO_STAT_TXRQ)) {
 		tmio_mmc_ack_mmc_irqs(host, TMIO_STAT_RXRDY | TMIO_STAT_TXRQ);
 		tmio_mmc_pio_irq(host);
+		return true;
+	}
+
+	/* Data transfer timeout */
+	if (ireg & TMIO_STAT_DATATIMEOUT) {
+		tmio_mmc_ack_mmc_irqs(host,
+				TMIO_STAT_DATAEND |
+				TMIO_STAT_DATATIMEOUT);
+		tmio_mmc_data_timeout_irq(host);
 		return true;
 	}
 
@@ -1015,6 +1049,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			goto fail;
 		if (!ret) {
 			ret = -ETIMEDOUT;
+			host->done_tuning = false;
 			goto fail;
 		}
 		host->last_req_ts = jiffies;
