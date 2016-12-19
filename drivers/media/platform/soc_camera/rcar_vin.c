@@ -93,6 +93,7 @@
 #define VNMC_INF_YUV8_BT656	(0 << 16)
 #define VNMC_INF_YUV8_BT601	(1 << 16)
 #define VNMC_INF_YUV16		(5 << 16)
+#define VNMC_INF_YUV20		((5 << 16) | (2 << 12))
 #define VNMC_INF_RGB888		(6 << 16)
 #define VNMC_INF_MASK		(7 << 16)
 #define VNMC_VUP		(1 << 10)
@@ -138,6 +139,7 @@ enum chip_id {
 	RCAR_H1,
 	RCAR_M1,
 	RCAR_E1,
+	RCAR_E2X,
 };
 
 struct VIN_COEFF {
@@ -626,6 +628,10 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 	case V4L2_MBUS_FMT_YUYV8_1X16:
 		/* BT.601/BT.1358 16bit YCbCr422 */
 		vnmc |= VNMC_INF_YUV16;
+		break;
+	case V4L2_MBUS_FMT_YUYV10_1X20:
+		/* BT.601/BT.709/BT.1358 20bit YCbCr422 */
+		vnmc |= VNMC_INF_YUV20;
 		break;
 	case V4L2_MBUS_FMT_YUYV8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
@@ -1457,6 +1463,7 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 	switch (code) {
 	case V4L2_MBUS_FMT_YUYV8_1X16:
 	case V4L2_MBUS_FMT_YUYV8_2X8:
+	case V4L2_MBUS_FMT_YUYV10_1X20:
 	case V4L2_MBUS_FMT_RGB888_1X24:
 		if (cam->extra_fmt)
 			break;
@@ -1871,6 +1878,7 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 };
 
 static struct platform_device_id rcar_vin_id_table[] = {
+	{ "r8a7794x-vin",  RCAR_E2X },
 	{ "r8a7794-vin",  RCAR_GEN2 },
 	{ "r8a7793-vin",  RCAR_GEN2 },
 	{ "r8a7791-vin",  RCAR_GEN2 },
