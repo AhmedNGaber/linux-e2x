@@ -1644,13 +1644,21 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 		field = pix->field;
 		break;
 	case V4L2_FIELD_INTERLACED:
-		/* Query for standard if not explicitly mentioned _TB/_BT */
-		ret = v4l2_subdev_call(sd, video, querystd, &std);
-		if (ret < 0)
-			std = V4L2_STD_625_50;
-
-		field = std & V4L2_STD_625_50 ? V4L2_FIELD_INTERLACED_TB :
-						V4L2_FIELD_INTERLACED_BT;
+		if (priv->chip == RCAR_E2X)
+			/* dvdec is fixed at BT */
+			field = V4L2_FIELD_INTERLACED_BT;
+		else {
+			/*
+			 * Query for standard if not explicitly
+			 * mentioned _TB/_BT
+			 */
+			ret = v4l2_subdev_call(sd, video, querystd, &std);
+			if (ret < 0)
+				std = V4L2_STD_625_50;
+			field = std & V4L2_STD_625_50
+					? V4L2_FIELD_INTERLACED_TB
+					: V4L2_FIELD_INTERLACED_BT;
+		}
 		break;
 	}
 
