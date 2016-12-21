@@ -109,6 +109,7 @@ struct tmio_mmc_host {
 	u8			*bounce_buf;
 	bool			use_internal_dma;
 	void __iomem		*prr;
+	u32			dma_tranend1;
 
 	/* Track lost interrupts */
 	struct delayed_work	delayed_reset_work;
@@ -118,6 +119,7 @@ struct tmio_mmc_host {
 	/* Cache IRQ mask */
 	u32			sdcard_irq_mask;
 	u32			sdio_irq_mask;
+	u32			dma_irq_mask;
 
 	spinlock_t		lock;		/* protect host private data */
 	unsigned long		last_req_ts;
@@ -167,6 +169,7 @@ void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable);
 void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdata);
 void tmio_mmc_release_dma(struct tmio_mmc_host *host);
 void tmio_mmc_abort_dma(struct tmio_mmc_host *host);
+bool __tmio_mmc_dma_irq(struct tmio_mmc_host *host);
 #else
 static inline void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 			       struct mmc_data *data)
@@ -190,6 +193,10 @@ static inline void tmio_mmc_release_dma(struct tmio_mmc_host *host)
 
 static inline void tmio_mmc_abort_dma(struct tmio_mmc_host *host)
 {
+}
+static inline bool __tmio_mmc_dma_irq(struct tmio_mmc_host *host)
+{
+	return false;
 }
 #endif
 

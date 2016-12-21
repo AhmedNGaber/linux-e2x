@@ -972,6 +972,10 @@ irqreturn_t tmio_mmc_irq(int irq, void *devid)
 		return IRQ_HANDLED;
 	if (__tmio_mmc_sdcard_irq(host, ireg, status))
 		return IRQ_HANDLED;
+	if (host->use_internal_dma) {
+		if (__tmio_mmc_dma_irq(host))
+			return IRQ_HANDLED;
+	}
 
 	tmio_mmc_sdio_irq(irq, devid);
 

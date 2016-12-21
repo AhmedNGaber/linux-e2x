@@ -49,6 +49,7 @@
 #define RST_RESERVED_BITS	GENMASK_ULL(32, 0)
 
 /* DM_CM_INFO1 and DM_CM_INFO1_MASK */
+#define INFO1_DTRANEND1_ES2	BIT(20)
 #define INFO1_DTRANEND1		BIT(17)
 #define INFO1_DTRANEND0		BIT(16)
 
@@ -73,14 +74,24 @@ static void tmio_dm_write(struct tmio_mmc_host *host, int addr, u32 val)
 	writel(val, host->ctl + addr);
 }
 
+static  u32 tmio_dm_read(struct tmio_mmc_host *host, int addr)
+{
+	return readl(host->ctl + addr);
+}
+
 void tmio_mmc_enable_dma(struct tmio_mmc_host *host, bool enable)
 {
 	if (host->use_internal_dma) {
 		if (!host->chan_tx || !host->chan_rx)
 			return;
 
-		if ((host->dma) && (host->dma->enable))
+		if ((host->dma) && (host->dma->enable)) {
+			host->dma_irq_mask =
+				~(host->dma_tranend1 | INFO1_DTRANEND0);
 			host->dma->enable(host, enable);
+			tmio_dm_write(host, DM_CM_INFO1_MASK,
+				host->dma_irq_mask);
+		}
 	} else {
 		if (!host->chan_tx || !host->chan_rx)
 			return;
@@ -504,6 +515,27 @@ out:
 	}
 }
 
+bool __tmio_mmc_dma_irq(struct tmio_mmc_host *host)
+{
+	unsigned int ireg, status;
+
+	status = tmio_dm_read(host, DM_CM_INFO1);
+	ireg = status & ~host->dma_irq_mask;
+
+	if (ireg & INFO1_DTRANEND0) {
+		tmio_dm_write(host, DM_CM_INFO1, ireg & ~INFO1_DTRANEND0);
+		tmio_mmc_tx_dma_complete((void *)host);
+		return true;
+	}
+
+	if (ireg & host->dma_tranend1) {
+		tmio_dm_write(host, DM_CM_INFO1, ireg & ~host->dma_tranend1);
+		tmio_mmc_rx_dma_complete((void *)host);
+		return true;
+	}
+	return false;
+}
+
 void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdata)
 {
 	if (host->use_internal_dma) {
@@ -513,6 +545,12 @@ void tmio_mmc_request_dma(struct tmio_mmc_host *host, struct tmio_mmc_data *pdat
 
 		/* mapping product register */
 		host->prr = ioremap_nocache(PRR, 0x4);
+
+		if ((ioread32(host->prr) & PRR_PRCUT_MASK)
+			== PRR_E2X_ES1)
+			host->dma_tranend1 = INFO1_DTRANEND1;
+		else /* ES 2.0 */
+			host->dma_tranend1 = INFO1_DTRANEND1_ES2;
 
 		tasklet_init(&host->dma_complete, tmio_mmc_tasklet_fn,
 			     (unsigned long)host);
