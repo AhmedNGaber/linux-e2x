@@ -1111,11 +1111,9 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
 	if (priv->chip == RCAR_E2X) {
 		/* Need to set same size with the DVDEC output */
 		iowrite32(cam_subrect->top, priv->base + VNSLPRC_REG);
-		iowrite32(cam_subrect->top + cam_subrect->height - 1,
-			priv->base + VNELPRC_REG);
+		iowrite32(cam_subrect->height, priv->base + VNELPRC_REG);
 		iowrite32(cam_subrect->left, priv->base + VNSPPRC_REG);
-		iowrite32(cam_subrect->left + cam_subrect->width - 1,
-			priv->base + VNEPPRC_REG);
+		iowrite32(cam_subrect->width, priv->base + VNEPPRC_REG);
 	} else {
 
 		iowrite32(left_offset << dsize, priv->base + VNSPPRC_REG);
@@ -1139,20 +1137,16 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
 
 	if (priv->chip == RCAR_E2X) {
 		/* Set scaling coefficient */
-		value = 0;
-		if ((cam_subrect->height * 2) != cam->out_height)
-			value = (4096 * (cam_subrect->height * 2))
-				/ cam->out_height;
+		value = 0x0;
+
 		dev_dbg(icd->parent, "YS Value: %lx\n", value);
 		iowrite32(value, priv->base + VNYS_REG);
 
-		value = 0;
-		if (cam_subrect->width != cam->out_width)
-			value = (4096 * cam_subrect->width) / cam->out_width;
-
+		value = 0x2000;
 		/* Horizontal enlargement is up to double size */
 		if (0 < value  && value < 0x0800)
 			value = 0x0800;
+
 		dev_dbg(icd->parent, "XS Value: %lx\n", value);
 		iowrite32(value, priv->base + VNXS_REG);
 
