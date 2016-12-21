@@ -1658,20 +1658,13 @@ static int rcar_vin_set_fmt(struct soc_camera_device *icd,
 		priv->error_flag = true;
 	else {
 		if (pixfmt == V4L2_PIX_FMT_NV16) {
-			unsigned int cmp_height;
 			if (pix->width & 0x1F) {
 				dev_err(icd->parent,
 				"Specified width error in NV16 format. "
 				"Please specify the multiple of 32.\n");
 				return -EINVAL;
 			}
-
-			if (priv->chip == RCAR_E2X)
-				cmp_height = cam->height * 2;
-			else
-				cmp_height = cam->height;
-
-			if (pix->height != cmp_height) {
+			if (pix->height != cam->height) {
 				dev_err(icd->parent,
 				"Vertical scaling-up error in NV16 format. "
 				"Please specify input height size.\n");
