@@ -57,16 +57,6 @@ static const struct soc_mbus_lookup mbus_fmt[] = {
 		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
-	.code = V4L2_MBUS_FMT_YUYV10_1X20,
-	.fmt = {
-		.fourcc			= V4L2_PIX_FMT_YUYV,
-		.name			= "YUYV 20bit",
-		.bits_per_sample	= 20,
-		.packing		= SOC_MBUS_PACKING_NONE,
-		.order			= SOC_MBUS_ORDER_LE,
-		.layout			= SOC_MBUS_LAYOUT_PACKED,
-	},
-}, {
 	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
 	.fmt = {
 		.fourcc			= V4L2_PIX_FMT_RGB555,

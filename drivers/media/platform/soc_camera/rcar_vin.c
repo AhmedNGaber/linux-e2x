@@ -93,7 +93,6 @@
 #define VNMC_INF_YUV8_BT656	(0 << 16)
 #define VNMC_INF_YUV8_BT601	(1 << 16)
 #define VNMC_INF_YUV16		(5 << 16)
-#define VNMC_INF_YUV20		((5 << 16) | (2 << 12))
 #define VNMC_INF_RGB888		(6 << 16)
 #define VNMC_INF_MASK		(7 << 16)
 #define VNMC_VUP		(1 << 10)
@@ -139,7 +138,6 @@ enum chip_id {
 	RCAR_H1,
 	RCAR_M1,
 	RCAR_E1,
-	RCAR_E2X,
 };
 
 struct VIN_COEFF {
@@ -601,16 +599,10 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 		break;
 	case V4L2_FIELD_INTERLACED:
 	case V4L2_FIELD_INTERLACED_TB:
-		if (priv->chip == RCAR_E2X)
-			vnmc = VNMC_IM_FULL | VNMC_FOC;
-		else
-			vnmc = VNMC_IM_FULL;
+		vnmc = VNMC_IM_FULL;
 		break;
 	case V4L2_FIELD_INTERLACED_BT:
-		if (priv->chip == RCAR_E2X)
-			vnmc = VNMC_IM_FULL;
-		else
-			vnmc = VNMC_IM_FULL | VNMC_FOC;
+		vnmc = VNMC_IM_FULL | VNMC_FOC;
 		break;
 	case V4L2_FIELD_NONE:
 		if (is_continuous_transfer(priv)) {
@@ -634,10 +626,6 @@ static int rcar_vin_setup(struct rcar_vin_priv *priv)
 	case V4L2_MBUS_FMT_YUYV8_1X16:
 		/* BT.601/BT.1358 16bit YCbCr422 */
 		vnmc |= VNMC_INF_YUV16;
-		break;
-	case V4L2_MBUS_FMT_YUYV10_1X20:
-		/* BT.601/BT.709/BT.1358 20bit YCbCr422 */
-		vnmc |= VNMC_INF_YUV20;
 		break;
 	case V4L2_MBUS_FMT_YUYV8_2X8:
 		/* BT.656 8bit YCbCr422 or BT.601 8bit YCbCr422 */
@@ -1110,96 +1098,61 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
 	dev_dbg(icd->parent, "Cam subrect %ux%u@%u:%u\n",
 		cam_subrect->width, cam_subrect->height,
 		cam_subrect->left, cam_subrect->top);
-	dev_dbg(icd->parent, "Cam out %ux%u\n",
-		cam->out_width, cam->out_height);
 
 	/* Set Start/End Pixel/Line Pre-Clip */
-	if (priv->chip == RCAR_E2X) {
-		/* Need to set same size with the DVDEC output */
-		iowrite32(cam_subrect->top, priv->base + VNSLPRC_REG);
-		iowrite32(cam_subrect->height, priv->base + VNELPRC_REG);
-		iowrite32(cam_subrect->left, priv->base + VNSPPRC_REG);
-		iowrite32(cam_subrect->width, priv->base + VNEPPRC_REG);
-	} else {
-
-		iowrite32(left_offset << dsize, priv->base + VNSPPRC_REG);
-		iowrite32((left_offset + cam_subrect->width - 1) << dsize,
-			  priv->base + VNEPPRC_REG);
-		switch (priv->field) {
-		case V4L2_FIELD_INTERLACED:
-		case V4L2_FIELD_INTERLACED_TB:
-		case V4L2_FIELD_INTERLACED_BT:
-			iowrite32(top_offset / 2, priv->base + VNSLPRC_REG);
-			iowrite32((top_offset + cam_subrect->height) / 2 - 1,
-				  priv->base + VNELPRC_REG);
-			break;
-		default:
-			iowrite32(top_offset, priv->base + VNSLPRC_REG);
-			iowrite32(top_offset + cam_subrect->height - 1,
-				  priv->base + VNELPRC_REG);
-			break;
-		}
+	iowrite32(left_offset << dsize, priv->base + VNSPPRC_REG);
+	iowrite32((left_offset + cam_subrect->width - 1) << dsize,
+		  priv->base + VNEPPRC_REG);
+	switch (priv->field) {
+	case V4L2_FIELD_INTERLACED:
+	case V4L2_FIELD_INTERLACED_TB:
+	case V4L2_FIELD_INTERLACED_BT:
+		iowrite32(top_offset / 2, priv->base + VNSLPRC_REG);
+		iowrite32((top_offset + cam_subrect->height) / 2 - 1,
+			  priv->base + VNELPRC_REG);
+		break;
+	default:
+		iowrite32(top_offset, priv->base + VNSLPRC_REG);
+		iowrite32(top_offset + cam_subrect->height - 1,
+			  priv->base + VNELPRC_REG);
+		break;
 	}
 
-	if (priv->chip == RCAR_E2X) {
-		/* Set scaling coefficient */
-		value = 0x0;
+	/* Set scaling coefficient */
+	value = 0;
+	if (cam_subrect->height != cam->out_height)
+		value = (4096 * cam_subrect->height) / cam->out_height;
+	dev_dbg(icd->parent, "YS Value: %lx\n", value);
+	iowrite32(value, priv->base + VNYS_REG);
 
-		dev_dbg(icd->parent, "YS Value: %lx\n", value);
-		iowrite32(value, priv->base + VNYS_REG);
+	value = 0;
+	if (cam_subrect->width != cam->out_width)
+		value = (4096 * cam_subrect->width) / cam->out_width;
 
-		value = 0x2000;
-		/* Horizontal enlargement is up to double size */
-		if (0 < value  && value < 0x0800)
-			value = 0x0800;
+	/* Horizontal enlargement is up to double size */
+	if (0 < value  && value < 0x0800)
+		value = 0x0800;
 
-		dev_dbg(icd->parent, "XS Value: %lx\n", value);
-		iowrite32(value, priv->base + VNXS_REG);
+	dev_dbg(icd->parent, "XS Value: %lx\n", value);
+	iowrite32(value, priv->base + VNXS_REG);
 
-		/* Horizontal enlargement is carried out */
-		/* by scaling down from double size */
-		if (value < 0x1000)
-			value *= 2;
+	/* Horizontal enlargement is carried out */
+	/* by scaling down from double size */
+	if (value < 0x1000)
+		value *= 2;
 
-		set_coeff(priv, value);
-	} else {
-		/* Set scaling coefficient */
-		value = 0;
-		if (cam_subrect->height != cam->out_height)
-			value = (4096 * cam_subrect->height) / cam->out_height;
-		dev_dbg(icd->parent, "YS Value: %lx\n", value);
-		iowrite32(value, priv->base + VNYS_REG);
-
-		value = 0;
-		if (cam_subrect->width != cam->out_width)
-			value = (4096 * cam_subrect->width) / cam->out_width;
-
-		/* Horizontal enlargement is up to double size */
-		if (0 < value  && value < 0x0800)
-			value = 0x0800;
-
-		dev_dbg(icd->parent, "XS Value: %lx\n", value);
-		iowrite32(value, priv->base + VNXS_REG);
-
-		/* Horizontal enlargement is carried out */
-		/* by scaling down from double size */
-		if (value < 0x1000)
-			value *= 2;
-
-		set_coeff(priv, value);
-	}
+	set_coeff(priv, value);
 
 	/* Set Start/End Pixel/Line Post-Clip */
 	iowrite32(0, priv->base + VNSPPOC_REG);
 	iowrite32(0, priv->base + VNSLPOC_REG);
-
 	iowrite32((cam->out_width - 1) << dsize, priv->base + VNEPPOC_REG);
 	switch (priv->field) {
 	case V4L2_FIELD_INTERLACED:
 	case V4L2_FIELD_INTERLACED_TB:
 	case V4L2_FIELD_INTERLACED_BT:
 		iowrite32(cam->out_height / 2 - 1,
-			priv->base + VNELPOC_REG);
+			  priv->base + VNELPOC_REG);
 		break;
 	default:
 		iowrite32(cam->out_height - 1, priv->base + VNELPOC_REG);
@@ -1504,7 +1457,6 @@ static int rcar_vin_get_formats(struct soc_camera_device *icd, unsigned int idx,
 	switch (code) {
 	case V4L2_MBUS_FMT_YUYV8_1X16:
 	case V4L2_MBUS_FMT_YUYV8_2X8:
-	case V4L2_MBUS_FMT_YUYV10_1X20:
 	case V4L2_MBUS_FMT_RGB888_1X24:
 		if (cam->extra_fmt)
 			break;
@@ -1919,7 +1871,6 @@ static struct soc_camera_host_ops rcar_vin_host_ops = {
 };
 
 static struct platform_device_id rcar_vin_id_table[] = {
-	{ "r8a7794x-vin",  RCAR_E2X },
 	{ "r8a7794-vin",  RCAR_GEN2 },
 	{ "r8a7793-vin",  RCAR_GEN2 },
 	{ "r8a7791-vin",  RCAR_GEN2 },
