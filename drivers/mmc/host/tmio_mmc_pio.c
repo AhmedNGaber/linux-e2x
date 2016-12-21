@@ -360,13 +360,6 @@ static void tmio_mmc_done_work(struct work_struct *work)
 	tmio_mmc_finish_request(host);
 }
 
-static void tmio_mmc_sdio_done_work(struct work_struct *work)
-{
-	struct tmio_mmc_host *host = container_of(work, struct tmio_mmc_host,
-						  sdio_done);
-	mmc_signal_sdio_irq(host->mmc);
-}
-
 #define TMIO_MMC_MAX_TUNING_LOOP 40
 
 static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
@@ -943,8 +936,6 @@ irqreturn_t tmio_mmc_sdio_irq(int irq, void *devid)
 	status = sd_ctrl_read16(host, CTL_SDIO_STATUS);
 	ireg = status & TMIO_SDIO_MASK_ALL & ~host->sdcard_irq_mask;
 
-	sd_ctrl_write16(host, CTL_SDIO_IRQ_MASK, TMIO_SDIO_MASK_ALL);
-
 	if (pdata->flags & TMIO_MMC_SDIO_STATUS_QUIRK) {
 		sd_ctrl_write16(host, CTL_SDIO_STATUS,
 					(status & ~TMIO_SDIO_MASK_ALL) | 6);
@@ -954,7 +945,7 @@ irqreturn_t tmio_mmc_sdio_irq(int irq, void *devid)
 	}
 
 	if (mmc->caps & MMC_CAP_SDIO_IRQ && ireg & TMIO_SDIO_STAT_IOIRQ)
-		schedule_work(&host->sdio_done);
+		mmc_signal_sdio_irq(mmc);
 
 	return IRQ_HANDLED;
 }
@@ -1494,7 +1485,6 @@ int tmio_mmc_host_probe(struct tmio_mmc_host **host,
 	/* Init delayed work for request timeouts */
 	INIT_DELAYED_WORK(&_host->delayed_reset_work, tmio_mmc_reset_work);
 	INIT_WORK(&_host->done, tmio_mmc_done_work);
-	INIT_WORK(&_host->sdio_done, tmio_mmc_sdio_done_work);
 
 	/* See if we also get DMA */
 	tmio_mmc_request_dma(_host, pdata);

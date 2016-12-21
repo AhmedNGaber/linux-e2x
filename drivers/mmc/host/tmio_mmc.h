@@ -113,7 +113,6 @@ struct tmio_mmc_host {
 	/* Track lost interrupts */
 	struct delayed_work	delayed_reset_work;
 	struct work_struct	done;
-	struct work_struct	sdio_done;
 
 	/* Cache IRQ mask */
 	u32			sdcard_irq_mask;
