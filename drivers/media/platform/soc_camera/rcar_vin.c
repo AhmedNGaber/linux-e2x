@@ -1127,7 +1127,12 @@ static int rcar_vin_set_rect(struct soc_camera_device *icd)
 	/* Set scaling coefficient */
 	value = 0;
 	if (cam_subrect->height != cam->out_height)
-		value = (4096 * cam_subrect->height) / cam->out_height;
+		value = (4096 * (cam_subrect->height - 2)) / cam->out_height;
+
+	if ((value != 0) &&
+		((4096 * (cam_subrect->height - 2)) % value == 0))
+		value--;
+
 	dev_dbg(icd->parent, "YS Value: %lx\n", value);
 	iowrite32(value, priv->base + VNYS_REG);
 
