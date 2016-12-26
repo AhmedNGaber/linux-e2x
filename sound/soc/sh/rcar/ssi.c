@@ -182,13 +182,14 @@ static int rsnd_ssi_master_clk_start(struct rsnd_ssi *ssi,
 				     struct rsnd_dai_stream *io, int ssi_flag)
 {
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
+	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
 	int ret;
 
 	ret = rsnd_ssi_config_init(mod, io);
 	if (ret < 0)
 		return ret;
 
-	if (rsnd_ssi_is_parent(ssi))
+	if (rsnd_rdai_is_clk_master(rdai) && rsnd_ssi_is_parent(ssi))
 		rsnd_ssi_register_setup_wsr(mod);
 	ret = __rsnd_ssi_master_clk_start(ssi, io, ssi_flag);
 	if (ret < 0)
