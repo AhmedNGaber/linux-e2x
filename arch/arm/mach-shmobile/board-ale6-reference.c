@@ -904,7 +904,7 @@ static void __init alex_add_vin_device(unsigned idx,
 	platform_device_register_full(&vin_info);
 }
 
-static const struct resource dvdec_resources[] __initconst = {
+static const struct resource dvdec_resources[] = {
 	DEFINE_RES_MEM(0xfeb81000, 0x2000),
 };
 
