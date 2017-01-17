@@ -197,7 +197,7 @@ enum {
 
 	/* IPSR13 */
 	FN_SD2_DATA3, FN_TX2_A, FN_DU1_DB1, FN_SSI_WS9_B, FN_SD2_CD,
-	FN_SCIF2_SCK_A, FN_DU1_DB2, FN_SSI_SCK9_B, FN_SD2_WP, FN_SCIF3_SCK_A,
+	FN_SCIF2_SCK_A, FN_DU1_DB2, FN_SSI_SCK9_B, FN_SD2_WP, FN_SCIF3_SCK,
 	FN_DU1_DB3, FN_SSI_SDATA9_B, FN_RX3_A, FN_SCL1_C, FN_MSIOF1_RXD_B,
 	FN_DU1_DB4, FN_AUDIO_CLKA_C, FN_SSI_SDATA4_B, FN_TX3_A, FN_SDA1_C,
 	FN_MSIOF1_TXD_B, FN_DU1_DB5, FN_AUDIO_CLKB_C, FN_SSI_WS4_B, FN_SCL2_A,
@@ -425,7 +425,7 @@ enum {
 	/* IPSR13 */
 	SD2_DATA3_MARK, TX2_A_MARK, DU1_DB1_MARK, SSI_WS9_B_MARK, SD2_CD_MARK,
 	SCIF2_SCK_A_MARK, DU1_DB2_MARK, SSI_SCK9_B_MARK, SD2_WP_MARK,
-	SCIF3_SCK_A_MARK, DU1_DB3_MARK, SSI_SDATA9_B_MARK, RX3_A_MARK,
+	SCIF3_SCK_MARK, DU1_DB3_MARK, SSI_SDATA9_B_MARK, RX3_A_MARK,
 	SCL1_C_MARK, MSIOF1_RXD_B_MARK, DU1_DB4_MARK, AUDIO_CLKA_C_MARK,
 	SSI_SDATA4_B_MARK, TX3_A_MARK, SDA1_C_MARK, MSIOF1_TXD_B_MARK,
 	DU1_DB5_MARK, AUDIO_CLKB_C_MARK, SSI_WS4_B_MARK, SCL2_A_MARK,
@@ -983,7 +983,7 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_DATA(IP13_7_4, DU1_DB2),
 	PINMUX_IPSR_MODSEL_DATA(IP13_7_4, SSI_SCK9_B, SEL_SSI9_1),
 	PINMUX_IPSR_DATA(IP13_11_8, SD2_WP),
-	PINMUX_IPSR_DATA(IP13_11_8, SCIF3_SCK_A),
+	PINMUX_IPSR_DATA(IP13_11_8, SCIF3_SCK),
 	PINMUX_IPSR_DATA(IP13_11_8, DU1_DB3),
 	PINMUX_IPSR_MODSEL_DATA(IP13_11_8, SSI_SDATA9_B, SEL_SSI9_1),
 	PINMUX_IPSR_MODSEL_DATA(IP13_15_12, RX3_A, SEL_SCIF3_0),
@@ -2223,12 +2223,12 @@ static const unsigned int scif3_data_a_pins[] = {
 static const unsigned int scif3_data_a_mux[] = {
 	RX3_A_MARK, TX3_A_MARK,
 };
-static const unsigned int scif3_clk_a_pins[] = {
+static const unsigned int scif3_clk_pins[] = {
 	/* SCK */
 	RCAR_GP_PIN(4, 21),
 };
-static const unsigned int scif3_clk_a_mux[] = {
-	SCIF3_SCK_A_MARK,
+static const unsigned int scif3_clk_mux[] = {
+	SCIF3_SCK_MARK,
 };
 static const unsigned int scif3_data_b_pins[] = {
 	/* RX, TX */
@@ -3009,7 +3009,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(scif2_clk_b),
 	SH_PFC_PIN_GROUP(scif2_data_c),
 	SH_PFC_PIN_GROUP(scif3_data_a),
-	SH_PFC_PIN_GROUP(scif3_clk_a),
+	SH_PFC_PIN_GROUP(scif3_clk),
 	SH_PFC_PIN_GROUP(scif3_data_b),
 	SH_PFC_PIN_GROUP(scif3_data_c),
 	SH_PFC_PIN_GROUP(scif4_data_a),
@@ -3307,7 +3307,7 @@ static const char * const scif2_groups[] = {
 
 static const char * const scif3_groups[] = {
 	"scif3_data_a",
-	"scif3_clk_a",
+	"scif3_clk",
 	"scif3_data_b",
 	"scif3_data_c",
 };
@@ -4042,7 +4042,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_AUDIO_CLKA_C, FN_SSI_SDATA4_B, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0,
 		/* IP13_11_8 [4] */
-		FN_SD2_WP, FN_SCIF3_SCK_A, 0, FN_DU1_DB3, FN_SSI_SDATA9_B, 0,
+		FN_SD2_WP, FN_SCIF3_SCK, 0, FN_DU1_DB3, FN_SSI_SDATA9_B, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		/* IP13_7_4 [4] */
 		FN_SD2_CD, FN_SCIF2_SCK_A, 0, FN_DU1_DB2, FN_SSI_SCK9_B, 0, 0,
