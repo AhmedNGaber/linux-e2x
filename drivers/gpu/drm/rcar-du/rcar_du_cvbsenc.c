@@ -240,10 +240,10 @@ int rcar_du_cvbsenc_start(struct rcar_du_cvbsenc *cvbs,
 			  struct rcar_du_crtc *rcrtc)
 {
 	void __iomem *srstclr7_reg;
-	void __iomem *padsa2r_reg;
+	void __iomem *didsr_reg;
 	void __iomem *mod_sel5_reg;
 	void __iomem *mod_sel5_mask_reg;
-	u32 padsa2r_val;
+	u32 didsr_val;
 	u32 mod_sel5_val;
 	u16 val;
 	int ret;
@@ -264,17 +264,17 @@ int rcar_du_cvbsenc_start(struct rcar_du_cvbsenc *cvbs,
 	writel_relaxed(SRCR7_DVENC, srstclr7_reg);
 	iounmap(srstclr7_reg);
 
-	/* Set PADSA2R register */
-	padsa2r_reg = ioremap_nocache(PADSA2R_REGISTER, 0x04);
+	/* Set DIDSR register */
+	didsr_reg = ioremap_nocache(DIDSR_REGISTER, 0x04);
 	if (rcrtc->index == 1) {
-		padsa2r_val = PADSA2R_DU1_DVENC |
-			      (readl_relaxed(padsa2r_reg) & 0x00000300);
+		didsr_val = DIDSR_DU1_DVENC |
+			      (readl_relaxed(didsr_reg) & 0x00000300);
 	} else {
-		padsa2r_val = PADSA2R_DU0_DVENC |
-			      (readl_relaxed(padsa2r_reg) & 0x00000C00);
+		didsr_val = DIDSR_DU0_DVENC |
+			      (readl_relaxed(didsr_reg) & 0x00000C00);
 	}
-	writel_relaxed(padsa2r_val, padsa2r_reg);
-	iounmap(padsa2r_reg);
+	writel_relaxed(didsr_val, didsr_reg);
+	iounmap(didsr_reg);
 
 	/* DAC power on and DU data select */
 	mod_sel5_mask_reg = ioremap_nocache(MOD_SEL5_MASK_REGISTER, 0x04);

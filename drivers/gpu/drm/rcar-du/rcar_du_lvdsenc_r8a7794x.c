@@ -90,25 +90,25 @@ static int rcar_du_lvdsenc_init_reg(struct rcar_du_lvdsenc *lvds,
 
 	/* Select the DU clock. */
 	if (lvds->dev->info->lvds0_crtc & (0x01 << rcrtc->index)) {
-		void __iomem *padsa2r_reg = NULL;
-		u32 padsa2r_val = 0;
+		void __iomem *didsr_reg = NULL;
+		u32 didsr_val = 0;
 
-		padsa2r_reg = ioremap_nocache(PADSA2R_REGISTER, 0x04);
+		didsr_reg = ioremap_nocache(DIDSR_REGISTER, 0x04);
 		if (rcrtc->index == 1) {
 			lclkselr |= LCLKSELR_LVDS_IN_CLK_SEL_0_DU1;
-			padsa2r_val = PADSA2R_DU1_LVDS |
-				      (readl_relaxed(padsa2r_reg) & 0x00000300);
+			didsr_val = DIDSR_DU1_LVDS |
+				      (readl_relaxed(didsr_reg) & 0x00000300);
 			lvds->input = RCAR_LVDS_INPUT_DU1;
 		} else {
 			lclkselr |= LCLKSELR_LVDS_IN_CLK_SEL_0_DU0;
-			padsa2r_val = PADSA2R_DU0_LVDS |
-				      (readl_relaxed(padsa2r_reg) & 0x00000C00);
+			didsr_val = DIDSR_DU0_LVDS |
+				      (readl_relaxed(didsr_reg) & 0x00000C00);
 			lvds->input = RCAR_LVDS_INPUT_DU0;
 		}
 		rcar_lvds_write(lvds, LCLKSELR, lclkselr);
 
-		writel_relaxed(padsa2r_val, padsa2r_reg);
-		iounmap(padsa2r_reg);
+		writel_relaxed(didsr_val, didsr_reg);
+		iounmap(didsr_reg);
 	}
 
 	return 0;
