@@ -89,8 +89,8 @@
 /* The start or stop of SD clock don't wait 10msec. */
 #define TMIO_MMC_CLK_NO_SLEEP		(1 << 8)
 
-/* Add SDIO status reserved bits for SH Mobile series. */
-#define TMIO_MMC_SDIO_STATUS_QUIRK	(1 << 9)
+/* Controller has some SDIO status bits which must be 1 */
+#define TMIO_MMC_SDIO_STATUS_SETBITS	(1 << 9)
 
 /* Actual clock rate. */
 #define TMIO_MMC_CLK_ACTUAL		(1 << 10)

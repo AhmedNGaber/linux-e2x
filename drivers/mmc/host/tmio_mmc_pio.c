@@ -974,7 +974,7 @@ irqreturn_t tmio_mmc_sdio_irq(int irq, void *devid)
 	status = sd_ctrl_read16(host, CTL_SDIO_STATUS);
 	ireg = status & TMIO_SDIO_MASK_ALL & ~host->sdio_irq_mask;
 
-	if (pdata->flags & TMIO_MMC_SDIO_STATUS_QUIRK) {
+	if (pdata->flags & TMIO_MMC_SDIO_STATUS_SETBITS) {
 		sd_ctrl_write16(host, CTL_SDIO_STATUS,
 					(status & ~TMIO_SDIO_MASK_ALL) | 6);
 	} else {
