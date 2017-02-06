@@ -328,6 +328,8 @@ void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 			__func__, host->sg_len,
 			data->flags);
 
+		tmio_clear_transtate(host);
+
 		/* This DMAC cannot handle if buffer is not 8-bytes alignment */
 		if (!IS_ALIGNED(sg->offset, 8)) {
 			host->force_pio = true;
