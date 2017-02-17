@@ -239,7 +239,7 @@ static int ak4642_dac_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMD:	/* before widget power down */
 		break;
 	case SND_SOC_DAPM_POST_PMD:	/* after widget power down */
-		mdelay(popdown_wait);
+		msleep(popdown_wait);
 		ret = ak4642_err_retry(snd_soc_update_bits(codec,
 			SG_SL2, LOPS, 0));
 		break;
