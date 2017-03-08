@@ -86,18 +86,37 @@ static u32 audmapp_read(struct audmapp_chan *auchan, u32 reg)
 	return ioread32(auchan->base + reg);
 }
 
+static void audmapp_bset(struct audmapp_chan *auchan,
+			 u32 data, u32 mask, u32 reg)
+{
+	struct audmapp_device *audev = to_dev(auchan);
+	struct device *dev = audev->dev;
+
+	u32 val = ioread32(auchan->base + reg);
+	val &= ~mask;
+	val |= (data & mask);
+
+	dev_dbg(dev, "b %p : %08x/%08x\n", auchan->base + reg, data, mask);
+
+	iowrite32(val, auchan->base + reg);
+}
+
 static void audmapp_halt(struct shdma_chan *schan)
 {
 	struct audmapp_chan *auchan = to_chan(schan);
+	struct audmapp_device *audev = to_dev(auchan);
+	struct device *dev = audev->dev;
 	int i;
 
-	audmapp_write(auchan, 0, PDMACHCR);
+	audmapp_bset(auchan, 0, PDMACHCR_DE, PDMACHCR);
 
 	for (i = 0; i < 1024; i++) {
-		if (0 == audmapp_read(auchan, PDMACHCR))
+		if (0 == (audmapp_read(auchan, PDMACHCR) & PDMACHCR_DE))
 			return;
 		udelay(1);
 	}
+
+	dev_err(dev, "Audio-DMAC-pp halt failed.\n");
 }
 
 static void audmapp_start_xfer(struct shdma_chan *schan,
