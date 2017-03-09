@@ -202,7 +202,7 @@ static bool audmapp_channel_busy(struct shdma_chan *schan)
 	struct audmapp_chan *auchan = to_chan(schan);
 	u32 chcr = audmapp_read(auchan, PDMACHCR);
 
-	return chcr & ~PDMACHCR_DE;
+	return !!(chcr & PDMACHCR_DE);
 }
 
 static bool audmapp_desc_completed(struct shdma_chan *schan,
