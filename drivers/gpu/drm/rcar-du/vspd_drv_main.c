@@ -1386,11 +1386,6 @@ static void vspd_write_back_done(struct vspd_private_data *vdata)
 		return;
 
 	case WB_STAT_CATP_START:
-		/* capture wait */
-		vdata->wb.stat = WB_STAT_CATP_WAIT;
-		return;
-
-	case WB_STAT_CATP_WAIT:
 		/* capture done */
 		vdata->wb.stat = WB_STAT_CATP_DONE;
 		wake_up_interruptible(&vdata->wb.wb_wait);
