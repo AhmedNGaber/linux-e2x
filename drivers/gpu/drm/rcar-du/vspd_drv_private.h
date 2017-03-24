@@ -368,7 +368,6 @@ struct vspd_private_data {
 	bool lif;
 	wait_queue_head_t event_wait;
 	spinlock_t lock;
-	spinlock_t wb_lock;
 	struct mutex mutex_lock;
 
 	struct dl_memory *dlmemory;

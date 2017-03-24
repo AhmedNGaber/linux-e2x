@@ -1373,15 +1373,11 @@ error_get_dl_body:
 
 static void vspd_write_back_done(struct vspd_private_data *vdata)
 {
-	unsigned long flags;
-
 	/* wait 2vsync */
 	switch (vdata->wb.stat) {
 	case WB_STAT_CATP_ENABLE:
 		/* capture start */
-		spin_lock_irqsave(&vdata->wb_lock, flags);
 		vdata->wb.stat = WB_STAT_CATP_START;
-		spin_unlock_irqrestore(&vdata->wb_lock, flags);
 		wake_up_interruptible(&vdata->wb.wb_wait);
 		return;
 
@@ -1396,7 +1392,6 @@ static void vspd_write_back_done(struct vspd_private_data *vdata)
 int vspd_dl_write_back_start(struct vspd_private_data *vdata,
 		struct vspd_blend blends[], int num)
 {
-	unsigned long flags;
 	int ret;
 
 	mutex_lock(&vdata->mutex_lock);
@@ -1417,12 +1412,10 @@ int vspd_dl_write_back_start(struct vspd_private_data *vdata,
 	}
 
 	vdata->wb.count = 0;
-	spin_lock_irqsave(&vdata->wb_lock, flags);
 	vdata->wb.stat = WB_STAT_CATP_ENABLE;
 
 	ret = vspd_dl_output_du_head_less(vdata, blends, num,
 						VSPD_FENCE_NONE);
-	spin_unlock_irqrestore(&vdata->wb_lock, flags);
 
 end:
 	mutex_unlock(&vdata->mutex_lock);
@@ -1823,7 +1816,6 @@ struct vspd_private_data *vspd_init(struct device *dev, int use_vsp)
 
 	init_waitqueue_head(&vdata->event_wait);
 	spin_lock_init(&vdata->lock);
-	spin_lock_init(&vdata->wb_lock);
 	mutex_init(&vdata->mutex_lock);
 	vdata->callback = NULL;
 	vdata->callback_data = NULL;
