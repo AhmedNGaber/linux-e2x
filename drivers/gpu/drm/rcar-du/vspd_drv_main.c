@@ -204,6 +204,7 @@ static irqreturn_t vspd_irq_handler(int irq, void *data)
 
 	stat = vspd_read(vdata, VI6_DISP_IRQ_STA) & VI6_DISP_IRQ_STA_DST;
 	if (stat) {
+		vspd_write_back_done(vdata);
 		vspd_write(vdata, VI6_DISP_IRQ_STA, ~stat);
 		vspd_dl_irq_display_start(vdata);
 	}
@@ -212,8 +213,6 @@ static irqreturn_t vspd_irq_handler(int irq, void *data)
 		wake_up_interruptible(&vdata->event_wait);
 
 	if (frame_stat & DL_IRQ_FRAME_END) {
-		vspd_write_back_done(vdata);
-
 		if (vdata->callback)
 			vdata->callback(vdata->callback_data);
 	}
@@ -1376,15 +1375,19 @@ static void vspd_write_back_done(struct vspd_private_data *vdata)
 	/* wait 2vsync */
 	switch (vdata->wb.stat) {
 	case WB_STAT_CATP_ENABLE:
-		/* capture start */
-		vdata->wb.stat = WB_STAT_CATP_START;
-		wake_up_interruptible(&vdata->wb.wb_wait);
+		if (vspd_read(vdata, VI6_WPF0_WRBCK_CTRL) & 1) {
+			/* capture start */
+			vdata->wb.stat = WB_STAT_CATP_START;
+			wake_up_interruptible(&vdata->wb.wb_wait);
+		}
 		return;
 
 	case WB_STAT_CATP_START:
-		/* capture done */
-		vdata->wb.stat = WB_STAT_CATP_DONE;
-		wake_up_interruptible(&vdata->wb.wb_wait);
+		if ((~vspd_read(vdata, VI6_WPF0_WRBCK_CTRL)) & 1) {
+			/* capture done */
+			vdata->wb.stat = WB_STAT_CATP_DONE;
+			wake_up_interruptible(&vdata->wb.wb_wait);
+		}
 		return;
 	}
 }
