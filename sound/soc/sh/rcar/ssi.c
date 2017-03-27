@@ -71,7 +71,6 @@ struct rsnd_ssi {
 	u32 cr_clk;
 	u32 cr_mode;
 	u32 cr_etc;
-	int chan;
 	int err;
 	int err_uirq, err_oirq;
 	unsigned int usrcnt;
@@ -544,32 +543,6 @@ static int rsnd_ssi_quit_irq(struct rsnd_mod *mod,
 	return 0;
 }
 
-static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
-			      struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *params)
-{
-	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
-	int chan = params_channels(params);
-
-	/*
-	 * Already working.
-	 * It will happen if SSI has parent/child connection.
-	 */
-	if (ssi->usrcnt > 1) {
-		/*
-		 * it is error if child <-> parent SSI uses
-		 * different channels.
-		 */
-		if (ssi->chan != chan)
-			return -EIO;
-	}
-
-	/* It will be removed on __rsnd_ssi_stop */
-	ssi->chan = chan;
-
-	return 0;
-}
-
 static void rsnd_ssi_record_error(struct rsnd_ssi *ssi, u32 status)
 {
 	struct rsnd_mod *mod = rsnd_mod_get(ssi);
@@ -717,7 +690,6 @@ static struct rsnd_mod_ops rsnd_ssi_pio_ops = {
 	.quit	= rsnd_ssi_quit,
 	.start	= rsnd_ssi_pio_start,
 	.stop	= rsnd_ssi_pio_stop,
-	.hw_params = rsnd_ssi_hw_params,
 };
 
 static irqreturn_t rsnd_ssi_dma_interrupt(int irq, void *data)
@@ -921,7 +893,6 @@ static struct rsnd_mod_ops rsnd_ssi_dma_ops = {
 	.start		= rsnd_ssi_start,
 	.stop		= rsnd_ssi_stop,
 	.dma_stop	= rsnd_ssi_dma_stop,
-	.hw_params	= rsnd_ssi_hw_params,
 };
 
 /*

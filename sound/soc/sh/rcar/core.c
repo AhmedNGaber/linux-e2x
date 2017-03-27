@@ -1126,15 +1126,6 @@ static int rsnd_pcm_open(struct snd_pcm_substream *substream)
 static int rsnd_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
-	struct snd_soc_dai *dai = rsnd_substream_to_dai(substream);
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	int ret;
-
-	ret = rsnd_dai_call(hw_params, io, substream, hw_params);
-	if (ret)
-		return ret;
-
 	return snd_pcm_lib_malloc_pages(substream,
 					params_buffer_bytes(hw_params));
 }
