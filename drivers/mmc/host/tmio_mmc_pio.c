@@ -537,6 +537,7 @@ err_tap:
 #define TRANSFER_READ  0x1000
 #define TRANSFER_MULTI 0x2000
 #define SECURITY_CMD   0x4000
+#define NO_CMD12_ISSUE 0x4000
 
 static int tmio_mmc_start_command(struct tmio_mmc_host *host, struct mmc_command *cmd)
 {
@@ -760,6 +761,16 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 	if (!data)
 		goto out;
 
+#if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
+	/* Response check of automatic CMD12 */
+	if ((sd_ctrl_read16(host, CTL_SD_CMD) &
+		(TRANSFER_MULTI | NO_CMD12_ISSUE)) == TRANSFER_MULTI) {
+		if (data->stop) {
+			data->stop->resp[0] =
+				sd_ctrl_read32(host, CTL_RESPONSE);
+		}
+	}
+#endif
 	if (stat & TMIO_STAT_CRCFAIL || stat & TMIO_STAT_STOPBIT_ERR ||
 	    stat & TMIO_STAT_TXUNDERRUN)
 		data->error = -EILSEQ;
