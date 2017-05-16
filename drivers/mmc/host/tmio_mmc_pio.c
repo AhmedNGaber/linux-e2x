@@ -745,6 +745,10 @@ static void tmio_mmc_data_irq(struct tmio_mmc_host *host, unsigned int stat)
 		if (data->stop) {
 			data->stop->resp[0] =
 				sd_ctrl_read32(host, CTL_RESPONSE);
+			if (data->stop->resp[0] &
+				(R1_COM_CRC_ERROR | R1_ILLEGAL_COMMAND |
+				R1_CC_ERROR | R1_ERROR))
+				data->stop->error = -EIO;
 		}
 	}
 #endif
