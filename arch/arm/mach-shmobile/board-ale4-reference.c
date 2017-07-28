@@ -403,6 +403,7 @@ static struct sh_mobile_sdhi_info sdhi0_info = {
 	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |
 			  MMC_CAP_POWER_OFF_CARD,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+	.scc_offset	= 0x0300,
 };
 
 static struct sh_mobile_sdhi_info sdhi2_info = {
@@ -422,6 +423,7 @@ static struct sh_mobile_sdhi_info mmc_info = {
 
 	.tmio_caps	= MMC_CAP_NONREMOVABLE,
 	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+	.scc_offset	= 0x1000,
 };
 
 /* SCIF */
