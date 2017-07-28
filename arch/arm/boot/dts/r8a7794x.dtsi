@@ -429,6 +429,7 @@
 		max-segs = <1>;
 		use-internal-dma;
 		renesas,clk-rate = <156000000>;
+		renesas,mmc-scc-tapnum = <8>;
 		renesas,pfcs = <0xe6060000 0xac>;
 		renesas,id = <2 0x01>;
 		renesas,e2x = <1>;
