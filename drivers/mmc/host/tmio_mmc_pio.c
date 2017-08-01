@@ -387,11 +387,13 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u8 *data_buf;
 	unsigned int tm = 5000; /* 5000msec */
 	unsigned long flags;
+	u8 data_size = 64;
 
 	if (ios->timing != MMC_TIMING_UHS_SDR104 &&
 	    ios->timing != MMC_TIMING_UHS_SDR50 &&
 	    ios->timing != MMC_TIMING_UHS_SDR25 &&
-	    ios->timing != MMC_TIMING_UHS_SDR12)
+	    ios->timing != MMC_TIMING_UHS_SDR12 &&
+	    ios->timing != MMC_TIMING_MMC_HS200)
 		return 0;
 
 	if ((pdata->inquiry_tuning && !pdata->inquiry_tuning(host)) ||
@@ -406,7 +408,10 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		goto err_tap;
 	}
 
-	data_buf = kmalloc(64, GFP_KERNEL);
+	if (ios->timing == MMC_TIMING_MMC_HS200)
+		data_size = 128;
+
+	data_buf = kmalloc(data_size, GFP_KERNEL);
 	if (data_buf == NULL) {
 		ret = -ENOMEM;
 		goto err_data;
@@ -443,14 +448,14 @@ static int tmio_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		cmd.retries = 0;
 		cmd.error = 0;
 
-		data.blksz = 64;
+		data.blksz = data_size;
 		data.blocks = 1;
 		data.flags = MMC_DATA_READ;
 		data.sg = &sg;
 		data.sg_len = 1;
 		data.error = 0;
 
-		sg_init_one(&sg, data_buf, 64);
+		sg_init_one(&sg, data_buf, data_size);
 
 		host->mrq = &mrq;
 
@@ -1036,6 +1041,7 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	struct tmio_mmc_data *pdata = host->pdata;
 	unsigned long flags;
 	int ret;
+	u32 opcode;
 
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -1057,9 +1063,12 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if (pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
 	    !host->done_tuning) {
+		if (mmc_card_mmc(host->mmc->card))
+			opcode = MMC_SEND_TUNING_BLOCK_HS200;
+		else
+			opcode = MMC_SEND_TUNING_BLOCK;
 		/* Start retuning */
-		ret = tmio_mmc_execute_tuning(mmc,
-					      MMC_SEND_TUNING_BLOCK);
+		ret = tmio_mmc_execute_tuning(mmc, opcode);
 		if (ret)
 			goto fail;
 		/* Restore request */
@@ -1084,9 +1093,12 @@ static void tmio_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		host->mrq = mrq;
 		if (pdata->inquiry_tuning && pdata->inquiry_tuning(host) &&
 		    !host->done_tuning) {
+			if (mmc_card_mmc(host->mmc->card))
+				opcode = MMC_SEND_TUNING_BLOCK_HS200;
+			else
+				opcode = MMC_SEND_TUNING_BLOCK;
 			/* Start retuning */
-			ret = tmio_mmc_execute_tuning(mmc,
-						      MMC_SEND_TUNING_BLOCK);
+			ret = tmio_mmc_execute_tuning(mmc, opcode);
 			if (ret)
 				goto fail;
 			/* Restore request */

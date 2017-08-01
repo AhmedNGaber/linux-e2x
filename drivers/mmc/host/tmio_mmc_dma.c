@@ -330,6 +330,11 @@ void tmio_mmc_start_dma(struct tmio_mmc_host *host,
 
 		tmio_clear_transtate(host);
 
+		if (host->force_pio) {
+			tmio_mmc_enable_dma(host, false);
+			return;
+		}
+
 		/* This DMAC cannot handle if buffer is not 8-bytes alignment */
 		if (!IS_ALIGNED(sg->offset, 8)) {
 			host->force_pio = true;
