@@ -26,6 +26,7 @@ struct sh_mobile_sdhi_info {
 	u32 tmio_ocr_mask;	/* available MMC voltages */
 	unsigned int cd_gpio;
 	dma_addr_t dma_rx_offset;
+	int scc_offset;
 
 	/* callbacks for board specific setup code */
 	int (*init)(struct platform_device *pdev,
