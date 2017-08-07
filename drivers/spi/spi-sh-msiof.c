@@ -160,7 +160,7 @@ struct sh_msiof_spi_priv {
 #define FCTR_RFWM_64	0x0000a000 /*  Transfer Request when 64 valid stages */
 #define FCTR_RFWM_128	0x0000c000 /*  Transfer Request when 128 valid stages */
 #define FCTR_RFWM_256	0x0000e000 /*  Transfer Request when 256 valid stages */
-#define FCTR_RFUA_MASK	0x00001ff0 /* Receive FIFO Usable Area (0x40 = full) */
+#define FCTR_RFUA_MASK	0x00001ff0 /* Receive FIFO Usable Area */
 #define FCTR_RFUA_SHIFT		 4
 #define FCTR_RFUA(i)	((i) << FCTR_RFUA_SHIFT)
 
