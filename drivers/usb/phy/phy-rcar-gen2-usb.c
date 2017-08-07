@@ -66,11 +66,6 @@ struct rcar_gen2_usb_phy_priv {
 #define USBHS_UGSTS_REG			0x88
 #define USBHS_UGSTS_LOCK		(1 << 8)
 
-/* USB Control register */
-#define USB2_USBCTR_REG			0x00c
-#define USB2_USBCTR_DIRPD		(1 << 2)
-#define USB2_USBCTR_PLL_RST		(1 << 1)
-
 /* Overcurrent Detection Timer Setting register */
 #define USB2_OC_TIMSET_REG		0x110
 #define USB2_OC_TIMSET_INIT		0x000209ab
@@ -96,12 +91,6 @@ static int __rcar_gen2_usbhs_phy_enable(void __iomem *base,
 	val = ioread32(base + USBHS_UGCTRL_REG);
 	val &= ~USBHS_UGCTRL_PLLRESET;
 	iowrite32(val, base + USBHS_UGCTRL_REG);
-
-	val = readl(usb2_base + USB2_USBCTR_REG);
-	val |= USB2_USBCTR_PLL_RST;
-	writel(val, usb2_base + USB2_USBCTR_REG);
-	val &= ~USB2_USBCTR_PLL_RST;
-	writel(val, usb2_base + USB2_USBCTR_REG);
 
 	/* Power on HSUSB PHY */
 	val = readw(base + USBHS_LPSTS_REG);
