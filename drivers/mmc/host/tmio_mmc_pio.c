@@ -1580,8 +1580,11 @@ void tmio_mmc_host_remove(struct tmio_mmc_host *host)
 	struct platform_device *pdev = host->pdev;
 	struct mmc_host *mmc = host->mmc;
 
-	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ)
+	if (host->pdata->flags & TMIO_MMC_SDIO_IRQ) {
+		pm_runtime_get_sync(&pdev->dev);
 		sd_ctrl_write16(host, CTL_TRANSACTION_CTL, 0x0000);
+		pm_runtime_put(&pdev->dev);
+	}
 
 	if (!host->native_hotplug)
 		pm_runtime_get_sync(&pdev->dev);
